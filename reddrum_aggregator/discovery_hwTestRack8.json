@@ -1,0 +1,14 @@
+{
+"Environment": "RealHardware",
+"RackServers": [
+  { "Id": "PORT1", "IPv4Address": "192.168.2.2" },  
+  { "Id": "PORT2", "IPv4Address": "192.168.2.3" },  
+  { "Id": "PORT3", "IPv4Address": "192.168.2.4" },  
+  { "Id": "PORT4", "IPv4Address": "192.168.2.5" },  
+  { "Id": "PORT5", "IPv4Address": "192.168.2.6" },  
+  { "Id": "PORT6", "IPv4Address": "192.168.2.7" },  
+  { "Id": "PORT7", "IPv4Address": "192.168.2.8" },  
+  { "Id": "PORT8", "IPv4Address": "192.168.2.9" }
+  ]
+}
+

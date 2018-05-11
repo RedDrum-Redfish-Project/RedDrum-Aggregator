@@ -1,0 +1,8 @@
+{
+"Environment": "Simulator",
+"RackServers": [
+  { "Id": "svr1", "IPv4Address": "127.0.0.1:8006" },
+  { "Id": "svr2", "IPv4Address": "127.0.0.1:8007" }
+  ]
+}  
+
