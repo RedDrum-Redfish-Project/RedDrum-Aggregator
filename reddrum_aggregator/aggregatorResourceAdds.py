@@ -100,6 +100,7 @@ class RfaResourceAdds():
         rackId = self.rfaCfg.rackChasId
         aggrMgrId = self.rfaCfg.aggregatorMgrId
         resp=dict()
+        resp["Netloc"]="127.0.0.1"
         resp["Name"]="Rack Aggregation Manager"
         resp["Description"]="Aggregation Manager Hosting Rack-Level Redfish Service"
         resp["ManagerType"]="AuxiliaryController"
@@ -148,6 +149,7 @@ class RfaResourceAdds():
         chasId = self.rfaCfg.aggregatorHostServerChasId
         resp=dict()
         resp["ChassisType"]="RackMount"
+        resp["Netloc"]="127.0.0.1"
         resp["Name"]="Redfish Aggregator RackMount Host Server Chassis"
         resp["Description"]="The host server implementing the Redfish Aggregator Manager indide the rack"
         resp["Manufacturer"]=self.rfaCfg.aggregatorHostServerManufacturer  #xg6 getting from cfg file for now
@@ -177,6 +179,7 @@ class RfaResourceAdds():
         chasId=svrId
         resp=dict()
         resp["IsRackServer"]=True
+        resp["Netloc"]=svrNetloc
         resp["ChassisType"]="RackMount"  # xg6 or is it mono
         resp["Name"]="Rack Server"
         resp["Description"]="Rack Server Chassis Enclosure"
@@ -207,6 +210,7 @@ class RfaResourceAdds():
         bmcMgrId=svrId
         resp=dict()
         resp["IsRackServer"]=True
+        resp["Netloc"]=svrNetloc
         resp["Name"]="Rack Computer System"
         resp["Description"]="Rack Server Computer System Node"
         resp["SystemType"]="Physical"
