@@ -25,6 +25,7 @@ class RdBackendRoot():
         #   valid rdBeIdConstructionRule values are:  "Monolythic", "Dss9000", "Aggregator"
         self.rdBeIdConstructionRule="Aggregator"
         self.includeRackScaleOemProperties=True
+        self.isSimulator=False
 
 
         # create backend sub-classes

@@ -108,6 +108,7 @@ class RdStartupResourceDiscovery():
                 environ = rackServersDiscoveryDict["Environment"]
                 if environ == "Simulator":
                     isSimulator=True
+                    rdr.backend.isSimulator=True
             for svr in rackServersDiscoveryDict["RackServers"]:
                 svrNetloc=None
                 svrMac=None
@@ -238,8 +239,8 @@ class RdStartupResourceDiscovery():
                         # extract url to the system and save it
                         if ("Members" in d) and (len(d["Members"]) == 1) and ("@odata.id" in d["Members"][0]):
                             sysUrl = d["Members"][0]["@odata.id"]
-                            self.managersDict[sysId]["SysUrl"] = sysUrl
-                            self.managersDict[sysId]["BaseUrl"]= rootUri
+                            self.systemsDict[sysId]["SysUrl"] = sysUrl
+                            self.systemsDict[sysId]["BaseUrl"]= rootUri
                             rdr.logMsg("INFO","............ added System: {}, Url: {}".format(sysId,sysUrl))
                         else:
                             rdr.logMsg("ERROR","............ no System Member found in Systems Collection for {}".format(sysId))
@@ -272,6 +273,12 @@ class RdStartupResourceDiscovery():
         rdr.logMsg("INFO","............discovery: setting systems database")
         rdr.root.systems.systemsDb=self.systemsDict
 
+        #   --create empty Processors, EthernetInterfaces, Memory, and SimpleStorage DBs
+        rdr.logMsg("INFO","............discovery: creating empty Proc, Mem, Sto, Eth DBs")
+        rdr.root.systems.processorsDb=dict()
+        rdr.root.systems.simpleStorageDb=dict()
+        rdr.root.systems.ethernetInterfaceDb=dict()
+        rdr.root.systems.memoryDb=dict()
 
         #PHASE-l:  
         rdr.logMsg("INFO","....discovery: running phase-l..   initialize volatile Dicts")
