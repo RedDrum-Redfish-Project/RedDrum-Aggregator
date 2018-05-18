@@ -10,7 +10,7 @@ from subprocess import Popen, PIPE
 import json
 import ipaddress
 
-class RdOpenBmcLinuxInterfaces():
+class RdAggrMgrLinuxInterfaces():
     def __init__(self,rdr):
         self.rdr = rdr
         self.x = 1

@@ -276,7 +276,7 @@ class RfaResourceAdds():
         # the following are defaults and on first call to the system the backend may update these
         resp["Model"]=None
         resp["ManagerInChassis"]=chasId    # note: not required in BaseServerProfile
-        resp["ManagerForChassis"]=[chasId,rackId]
+        resp["ManagerForChassis"]=[chasId]
         resp["ManagerForServers"]=[svrId]
         resp["Status"]={"State": None, "Health": None }
         resp["ProcessorSummary"]={"Count": None,"Model": None,"Status": {"State": None,"Health": None} }
