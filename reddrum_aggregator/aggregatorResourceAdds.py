@@ -14,6 +14,7 @@ class RfaResourceAdds():
     def addRfaRackChassis(self):
         rackId = self.rfaCfg.rackChasId
         resp=dict()
+        resp["IsTopLevelChassisInAggrRack"]=True
         resp["ChassisType"]="Rack"
         resp["Name"]="Redfish_Aggretator_Rack"
         resp["Description"]="Rack-Level Enclosure for of Redfish Aggregator Servers and Mgt Switch "
@@ -67,6 +68,7 @@ class RfaResourceAdds():
         rackId = self.rfaCfg.rackChasId
         chasId = self.rfaCfg.mgtSwitchChasId
         resp=dict()
+        resp["IsMgtSwitchChassisInAggrRack"]=True
         resp["ChassisType"]="RackMount"
         resp["Name"]="Management Switch"
         resp["Description"]="Rack-Level Management Switch Enclosure"
@@ -100,6 +102,7 @@ class RfaResourceAdds():
         rackId = self.rfaCfg.rackChasId
         aggrMgrId = self.rfaCfg.aggregatorMgrId
         resp=dict()
+        resp["IsAggregatorManager"]=True
         resp["Netloc"]="127.0.0.1"
         resp["Name"]="Rack Aggregation Manager"
         resp["Description"]="Aggregation Manager Hosting Rack-Level Redfish Service"
@@ -148,6 +151,7 @@ class RfaResourceAdds():
         #chasId = self.rfaCfg.mgtSwitchChasId
         chasId = self.rfaCfg.aggregatorHostServerChasId
         resp=dict()
+        resp["IsAggrHostServerChassisInAggrRack"]=True
         resp["ChassisType"]="RackMount"
         resp["Netloc"]="127.0.0.1"
         resp["Name"]="Redfish Aggregator RackMount Host Server Chassis"
@@ -178,7 +182,7 @@ class RfaResourceAdds():
         bmcMgrId=svrId
         chasId=svrId
         resp=dict()
-        resp["IsRackServer"]=True
+        resp["IsRackServerChassis"]=True
         resp["Netloc"]=svrNetloc
         resp["ChassisType"]="RackMount"  # xg6 or is it mono
         resp["Name"]="Rack Server"
@@ -209,7 +213,7 @@ class RfaResourceAdds():
         aggMgrId = self.rfaCfg.aggregatorMgrId
         bmcMgrId=svrId
         resp=dict()
-        resp["IsRackServer"]=True
+        resp["IsRackServerSystem"]=True
         resp["Netloc"]=svrNetloc
         resp["Name"]="Rack Computer System"
         resp["Description"]="Rack Server Computer System Node"
@@ -258,7 +262,7 @@ class RfaResourceAdds():
         aggMgrId = self.rfaCfg.aggregatorMgrId
         bmcMgrId=svrId
         resp=dict()
-        resp["IsRackServer"]=True
+        resp["IsRackServerManager"]=True
         resp["Netloc"]=svrNetloc
         resp["Name"]="Rack Computer System"
         resp["Description"]="Rack Server Computer System Node"

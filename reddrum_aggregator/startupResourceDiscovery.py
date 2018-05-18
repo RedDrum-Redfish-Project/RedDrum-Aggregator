@@ -131,6 +131,15 @@ class RdStartupResourceDiscovery():
                 chasId, svrChasEntry = self.rfaResAdds.addRfaRackServerChassis(svrId, svrNetloc, svrMac)
                 if chasId is not None:
                     self.chassisDict[chasId] = svrChasEntry 
+                    if "BaseNavigationProperties" in svrChasEntry:
+                        chasLinks = svrChasEntry["BaseNavigationProperties"]
+                        if "Thermal" in chasLinks:
+                            self.temperatureSensorsDict[chasId]={}
+                            self.fansDict[chasId]={}
+                        if "Power" in chasLinks:
+                            self.powerSuppliesDict[chasId]={}
+                            self.voltageSensorsDict[chasId]={}
+                            self.powerControlDict[chasId]={}
 
                 # create a Systems Entry for the rack server
                 sysId, svrSystemEntry = self.rfaResAdds.addRfaRackServerSystem(svrId, svrNetloc, svrMac)
@@ -161,9 +170,9 @@ class RdStartupResourceDiscovery():
         # PHASE-1j: sequentially communicate w/ each server BMC and save URIs to chas, sys, and mgr resources
         rdr.logMsg("INFO","....discovery: running phase-1j.  getting detail server info from Server BMCs")
         for mgrId in self.managersDict:
-            if "IsRackServer" not in self.managersDict[mgrId]:
+            if "IsRackServerManager" not in self.managersDict[mgrId]:
                 continue
-            if self.managersDict[mgrId]["IsRackServer"] is not True:
+            if self.managersDict[mgrId]["IsRackServerManager"] is not True:
                 continue
 
             rdr.logMsg("INFO","....... adding server Id:{}".format(mgrId))

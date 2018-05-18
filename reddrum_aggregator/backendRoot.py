@@ -48,11 +48,11 @@ class RdBackendRoot():
         rdSvcPath=os.getcwd()
 
         rdr.baseDataPath=os.path.join(rdr.frontEndPkgPath,"Data")
-        print("EEEEEEEE: baseDataPath: {}".format(rdr.baseDataPath))
+        print("DEBUG: baseDataPath: {}".format(rdr.baseDataPath))
 
         # FIX final paths for RedDrum-Aggregator /var and /etc...
         rdr.varDataPath=os.path.join("/var", "www", "rf")
-        print("EEEEEEEE: varDataPath: {}".format(rdr.varDataPath))
+        print("DEBUG: varDataPath: {}".format(rdr.varDataPath))
 
         # if we have a RedDrum.conf file in etc/ use it. otherwise use the default
         #rdr.RedDrumConfPath=os.path.join(rdSvcPath, "RedDrum.conf" )
@@ -62,14 +62,14 @@ class RdBackendRoot():
             rdr.RedDrumConfPath=redDrumConfPathEtc
         else:
             rdr.RedDrumConfPath=redDrumConfPathFrontend
-        print("EEEEEEEE: RedDrumConfPath: {}".format(rdr.RedDrumConfPath))
+        print("DEBUG: RedDrumConfPath: {}".format(rdr.RedDrumConfPath))
 
         # set path to schemas -- not used now
         rdr.schemasPath = os.path.join(rdSvcPath, "schemas") #not used now
 
         # set path to bash scripts to run to get data from Linux
         self.backendScriptsPath = os.path.dirname( inspect.getfile(RdBackendRoot))
-        print("EEEEEEEE: backendScriptsPath: {}".format(self.backendScriptsPath))
+        print("DEBUG: backendScriptsPath: {}".format(self.backendScriptsPath))
 
         # set path to backend data files for static rack server discovery and static test lldp output file
         self.backendDiscoveryFilePaths = self.backendScriptsPath 
