@@ -208,7 +208,7 @@ class  RdManagersBackend():
             backendSupportedProtocols = ["HTTP","HTTPS","SSH"]
             if "NetworkProtocols" in resDb:
                 rc,mgrNetwkProtoInfo = self.linuxApis.getObmcNetworkProtocolInfo()
-                print("EEEEExg99: rc: {},   mnp: {}".format(rc,mgrNetwkProtoInfo))
+                #print("EEEEExg99: rc: {},   mnp: {}".format(rc,mgrNetwkProtoInfo))
                 if rc==0:
                     for proto in backendSupportedProtocols:
                         if proto in resDb["NetworkProtocols"] and proto in mgrNetwkProtoInfo:
@@ -223,7 +223,55 @@ class  RdManagersBackend():
 
         elif self.isManagerRackServerManager( mgrid) is True:
             # this is a rackServer BMC manager.
-            # FINISH:  xg99
+            # get data from BMC
+            if "Netloc" in resDb and "MgrUrl" in resDb:
+                bmcNetloc=resDb["Netloc"]
+                mgrUrl=resDb["MgrUrl"]
+            else:
+                return(17,False)
+            # open Redfish transport to this bmc
+            rft = BmcRedfishTransport(rhost=bmcNetloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug,
+                                          credentialsPath=self.rdr.bmcCredentialsPath)
+
+            # check if we already have the URI for the manager networkProtocols
+            if "NetworkProtocolUri" in resDb:
+                networkProtocolUri=resDb["NetworkProtocolUri"]
+            else:
+                # we need to query the manager to get the NetworkProtocol URI
+                self.rdr.logMsg("DEBUG","--------BACKEND NetworkProtocolUri not in database. mgrid={}".format(mgrid))
+                # send request to the manager
+                rc,r,j,dmgr = rft.rfSendRecvRequest("GET", mgrUrl )
+                if rc is not 0:
+                    self.rdr.logMsg("ERROR","..........error getting Manager base resource. rc: {}".format(rc))
+                    return(18) # note: returning non-zero rc, will cause a 500 error from the frontend.
+                if "NetworkProtocol" in dmgr and "@odata.id" in dmgr["NetworkProtocol"]:
+                    networkProtocolUri=dmgr["NetworkProtocol"]["@odata.id"]
+                    resDb["NetworkProtocolUri"]=networkProtocolUri
+                else:
+                    self.rdr.logMsg("INFO","..........No NetworkProtocol property in Manager Entry: {}".format(rc))
+                    return(0) # note: returning non-zero rc, will cause a 500 error from the frontend.
+
+            # send request to the rackserver  BMC to get the Network Protocol resource
+            rc,r,j,dnetwkProtos = rft.rfSendRecvRequest("GET", networkProtocolUri )
+            if rc is not 0:
+                self.rdr.logMsg("ERROR","..........error getting NetworkProtocol resource from rackserver BMC: {}. rc: {}".format(mgrid,rc))
+                return(19,False) # note: returning non-zero rc, will cause a 500 error from the frontend.
+
+            # save front-end database update timestamp
+            #resVolDb["UpdateTime"] = curTime
+            #updateStaticProps=True
+            #updateNonVols = True
+
+            # get the properties
+            networkProtocolProperties=["Name","HTTP","HTTPS","SSH", "NTP","HostName","FQDN","Telnet","Status","SNMP",
+                                       "VirtualMedia","SSDP","IPMI","KVMIP"]
+            if "NetworkProtocols" not in resDb:
+                resDb["NetworkProtocols"]={}
+
+            for prop in networkProtocolProperties:
+                if prop in dnetwkProtos:
+                    resDb["NetworkProtocols"][prop] = dnetwkProtos[prop]
+
             return(0)
 
         else:
@@ -233,7 +281,31 @@ class  RdManagersBackend():
 
     # update EthernetInterface Info
     def updateManagerEthernetEnterfacesDbFromBackend(self, mgrid, noCache=False, ethid=None):
+        mgrDb=self.rdr.root.managers.managersDb
         resDb=self.rdr.root.managers.managersDb[mgrid]
+        mgrInfoCacheTimeout=self.rdr.processorInfoCacheTimeout  #xg99 need a mgrInfoCacheTimeout
+        maxCollectionEntries=8
+
+        # get time 
+        curTime=datetime.datetime.utcnow()
+        lastMgrEtherUpdateTime=None
+
+        # if using processor cache is enabled/selected, check if cache exists
+        if (mgrInfoCacheTimeout > 0) and (noCache is False):
+            if( (mgrid in mgrDb) and ("Id" in  mgrDb[mgrid]) and
+                ("EthernetUpdateTime" in mgrDb[mgrid]) and (mgrDb[mgrid]["EthernetUpdateTime"] is not None) ):
+                # if we have a mgrid entry in procDb with an "Id" resource, then we have a proc cache
+                # (the sys monitor or hotplug code will clear the db for this sysid if it is out of date
+                #  by removing the entry or setting UpdateTime to None)
+
+                #check if the cache timeout has occured
+                # note lastProcDbUpdateTime in string form: "2017-06-13 16:12:02.729333"
+                lastMgrEtherUpdateTime=datetime.datetime.strptime(str(mgrDb[mgrid]["EthernetUpdateTime"]), "%Y-%m-%d %H:%M:%S.%f")
+                # if currentTime - lastUpdateTime is less than rdr.procInfoCacheTimeout, return. no update required
+                #if ( (curTime - lastProcDbUpdateTime) < datetime.timedelta(seconds=1)):
+                if ( (curTime - lastMgrEtherUpdateTime) < datetime.timedelta(seconds=procInfoCacheTimeout)):
+                    self.rdr.logMsg("DEBUG","---------BACKEND ManagerInfo: cache not timed-out. Return w/o updating Db")
+                    return(0)
 
         if self.isManagerTheRackAggregationManager( mgrid) is True:
             if "EthernetInterfaces" in resDb:
@@ -250,8 +322,78 @@ class  RdManagersBackend():
             return(0)
 
         elif self.isManagerRackServerManager( mgrid) is True:
-            # this is a rackServer BMC manager.
-            # FINISH:  xg99
+            #fixIdracProperties=["ProcessorArchitecture", "InstructionSet" ]
+            managerEthernetProperties=["Name", "UefiDevicePath", "Status", "InterfaceEnabled", "PermanentMACAddress", 
+                "MACAddress", "SpeedMbps", "AutoNeg", "FullDuplex", "MTUSize", "HostName", "FQDN", 
+                "MaxIPv6StaticAddresses", "VLAN", "IPv4Addresses", "IPv6Addresses", "IPv6StaticAddresses", 
+                "IPv6AddressPolicyTable","IPv6DefaultGateway","NameServers", "VLANs"]
+
+            # get data from BMC
+            if "Netloc" in resDb and "MgrUrl" in resDb:
+                bmcNetloc=resDb["Netloc"]
+                mgrUrl=resDb["MgrUrl"]
+            else:
+                return(17,False)
+            # open Redfish transport to this bmc
+            rft = BmcRedfishTransport(rhost=bmcNetloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug,
+                                          credentialsPath=self.rdr.bmcCredentialsPath)
+
+            # check if we already have the URI for the Managers EthernetInterfaces collection 
+            if "EthernetInterfacesUri" in resDb:
+                ethernetInterfacesUri=resDb["EthernetInterfacesUri"]
+            else:
+                # we need to query the manager to get the EthernetInterfaces Collection URI
+                self.rdr.logMsg("DEBUG","--------BACKEND EthernetInterfacesUri not in database. mgrid={}".format(mgrid))
+                # send request to the manager
+                rc,r,j,dmgr = rft.rfSendRecvRequest("GET", mgrUrl )
+                if rc is not 0:
+                    self.rdr.logMsg("ERROR","..........error getting Manager base resource. rc: {}".format(rc))
+                    return(18) # note: returning non-zero rc, will cause a 500 error from the frontend.
+                if "EthernetInterfaces" in dmgr and "@odata.id" in dmgr["EthernetInterfaces"]:
+                    ethernetInterfacesUri=dmgr["EthernetInterfaces"]["@odata.id"]
+                    resDb["EthernetInterfacesUri"]=ethernetInterfacesUri
+                else:
+                    self.rdr.logMsg("INFO","..........No EthernetInterfaces property in Manager Entry: {}".format(rc))
+                    return(0) # note: returning non-zero rc, will cause a 500 error from the frontend.
+
+            # update the base level ethernetInterfaces Db entry 
+            if "EthernetInterfacesUri" in resDb:   # if we have an ethernet interfaces collection at all 
+                resDb["EthernetInterfaces"]={}
+            if "EthernetUpdateTime" not in resDb:
+                mgrDb[mgrid]["EthernetUpdateTime"]=None
+
+            # Get the Manager Ethernet Collection from the Node
+            #self.rdr.logMsg("DEBUG","mgrUri: {}".format(ethernetInterfacesUri))
+
+            rc,r,j,dCollection=rft.rfSendRecvRequest("GET",ethernetInterfacesUri)
+            if( (rc== 0) and (r.status_code==200) and (j is True)):
+                # walk the collection members and read each member to get its Id and data
+                if "Members" in dCollection and (len(dCollection["Members"])< maxCollectionEntries  ):
+                    for member in dCollection["Members"]:
+                        # extract the Uri
+                        memberUri = member["@odata.id"]
+                        rc,r,j,d=rft.rfSendRecvRequest("GET",memberUri)
+                        if( rc== 0 ):
+                            # save the entry
+                            memberId=d["Id"]
+                            if any( i in memberId for i in "#" ):
+                                memberId = memberId.replace("#","-")
+                            if memberId not in resDb["EthernetInterfaces"]:
+                                resDb["EthernetInterfaces"][memberId]={}
+                            for prop in managerEthernetProperties:
+                                if prop in d:
+                                    resDb["EthernetInterfaces"][memberId][prop] = d[prop]
+
+                    # add update time
+                    mgrDb[mgrid]["EthernetUpdateTime"]=curTime
+                    return(0)
+                else:
+                    self.rdr.logMsg("ERROR","--------BACKEND Get Mgr Ethernet Collecton bad response, mgrid={}".format(mgrid))
+                    return(0)
+            else:
+                self.rdr.logMsg("WARNING","--------BACKEND Get Mgr Collecton returned error rc={}, mgrid={}".format(rc,mgrid))
+                return(0)
+
             return(0)
 
         else:
