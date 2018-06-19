@@ -208,7 +208,7 @@ class  RdManagersBackend():
             backendSupportedProtocols = ["HTTP","HTTPS","SSH"]
             if "NetworkProtocols" in resDb:
                 rc,mgrNetwkProtoInfo = self.linuxApis.getObmcNetworkProtocolInfo()
-                print("EEEEExg99: rc: {},   mnp: {}".format(rc,mgrNetwkProtoInfo))
+                #print("EEEEExg99: rc: {},   mnp: {}".format(rc,mgrNetwkProtoInfo))
                 if rc==0:
                     for proto in backendSupportedProtocols:
                         if proto in resDb["NetworkProtocols"] and proto in mgrNetwkProtoInfo:
@@ -272,12 +272,6 @@ class  RdManagersBackend():
                 if prop in dnetwkProtos:
                     resDb["NetworkProtocols"][prop] = dnetwkProtos[prop]
 
-            print("#EE#######################")
-            print("networkProtocols:   {}".format(dnetwkProtos))
-            print("#EE#######################")
-            print("KVMIP:   {}".format(dnetwkProtos["KVMIP"]))
-
-            # FINISH:  xg99
             return(0)
 
         else:
@@ -306,7 +300,7 @@ class  RdManagersBackend():
 
                 #check if the cache timeout has occured
                 # note lastProcDbUpdateTime in string form: "2017-06-13 16:12:02.729333"
-                lastProcDbUpdateTime=datetime.datetime.strptime(str(procDb[sysid]["UpdateTime"]), "%Y-%m-%d %H:%M:%S.%f")
+                lastMgrEtherUpdateTime=datetime.datetime.strptime(str(mgrDb[mgrid]["EthernetUpdateTime"]), "%Y-%m-%d %H:%M:%S.%f")
                 # if currentTime - lastUpdateTime is less than rdr.procInfoCacheTimeout, return. no update required
                 #if ( (curTime - lastProcDbUpdateTime) < datetime.timedelta(seconds=1)):
                 if ( (curTime - lastMgrEtherUpdateTime) < datetime.timedelta(seconds=procInfoCacheTimeout)):
@@ -366,7 +360,7 @@ class  RdManagersBackend():
             if "EthernetInterfacesUri" in resDb:   # if we have an ethernet interfaces collection at all 
                 resDb["EthernetInterfaces"]={}
             if "EthernetUpdateTime" not in resDb:
-                resDb["EthernetUpdateTime"]=None
+                mgrDb[mgrid]["EthernetUpdateTime"]=None
 
             # Get the Manager Ethernet Collection from the Node
             #self.rdr.logMsg("DEBUG","mgrUri: {}".format(ethernetInterfacesUri))
@@ -391,7 +385,7 @@ class  RdManagersBackend():
                                     resDb["EthernetInterfaces"][memberId][prop] = d[prop]
 
                     # add update time
-                    resDb["EthernetUpdateTime"]=curTime
+                    mgrDb[mgrid]["EthernetUpdateTime"]=curTime
                     return(0)
                 else:
                     self.rdr.logMsg("ERROR","--------BACKEND Get Mgr Ethernet Collecton bad response, mgrid={}".format(mgrid))
