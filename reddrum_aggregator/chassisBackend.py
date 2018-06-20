@@ -171,19 +171,152 @@ class  RdChassisBackend():
                         resDb[prop]=sysHwMonData[prop]
                         updatedResourceDb=True
 
+        # update Actions Reset AllowableValues
+        if "ActionsResetAllowableValues" in resDb:
+            if "Actions" in sysHwMonData and "#Chassis.Reset" in sysHwMonData["Actions"]:
+                if "ResetType@Redfish.AllowableValues" in sysHwMonData["Actions"]["#Chassis.Reset"]:
+                    resDb["ActionsResetAllowableValues"]=sysHwMonData["Actions"]["#Chassis.Reset"]["ResetType@Redfish.AllowableValues"]
+                    updatedResourceDb=True
+                if "target" in sysHwMonData["Actions"]["#Chassis.Reset"]:
+                    resDb["SysResetTargetUrl"]=sysHwMonData["Actions"]["#Chassis.Reset"]["target"]
+                    updatedResourceDb=True
+
         rc=0     # 0=ok
         return(rc,updatedResourceDb)
 
 
     def doChassisReset(self, chassisid, resetType):
-        self.rdr.logMsg("DEBUG","--------BACKEND got POST for Chassis Reset--NOT SUPPORTED FOR OBMC")
-        #rc = self.dbus.resetObmcSystem(resetType)
+        self.rdr.logMsg("DEBUG","--------BACKEND got POST for chassis Reset.  resetType={}".format(resetType))
+        sendResetToBmc=False
+        resDb=self.rdr.root.chassis.chassisDb[chassisid]
+
+        # the front-end has already validated that the patchData and chassisid is ok
+        if "IsTopLevelChassisInAggrRack" in resDb and resDb["IsTopLevelChassisInAggrRack"] is True:
+            # xgTODO 
+            netloc = None
+            chasUrl = None
+            sendResetToBmc = False # for now
+            rc=0
+    
+        # else if chassis is the Mgt Switch chassis 
+        elif "IsMgtSwitchChassisInAggrRack" in resDb and resDb["IsMgtSwitchChassisInAggrRack"] is True:
+            # patch data in MgtSwitch
+            # xgTODO
+            netloc = None
+            chasUrl = None
+            sendResetToBmc = False # for now
+            rc=0
+    
+        # else if chassis is an aggregator Host Server chassis (agg mgr in a separate chassis)
+        elif "IsAggrHostServerChassisInAggrRack" in resDb and resDb["IsAggrHostServerChassisInAggrRack"] is True:
+            # get data from the Aggregator Host server's local bmc
+            # xgTODO
+            netloc = None
+            chasUrl = None
+            sendResetToBmc = False # for now
+            rc=0
+    
+        # else if this is a RackServer chassis (monolythic in the rack)
+        elif "IsRackServerChassis" in resDb and resDb["IsRackServerChassis"] is True:
+            # extract the netloc and chassis entry URL from the chassisDb saved during discovery
+            sendResetToBmc = True
+            netloc = resDb["Netloc"]
+            chasUrl = resDb["ChasUrl"]
+
+            # open Redfish transport to this bmc
+            rft = BmcRedfishTransport(rhost=netloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug,
+                                      credentialsPath=self.rdr.bmcCredentialsPath)
+        else:
+            rc=9
+
+        # execute below if sendResetToBmc was set true, and netloc, chasUrl, and rft have been set above
+        if sendResetToBmc is True: 
+            # check if we already have a system reset URI collected
+            if "ChasResetTargetUrl" in resDb:
+                chasResetTargetUrl = resDb["ChasResetTargetUrl"]
+            else:
+                # send request to the rackserver  BMC to read the chassis resource
+                rc,r,j,d = rft.rfSendRecvRequest("GET", chasUrl )
+                if rc is not 0:
+                    self.rdr.logMsg("ERROR","..........error getting chassis entry from rackserver BMC: {}. rc: {}".format(systemid,rc))
+                    return(19,False) # note: returning non-zero rc, will cause a 500 error from the frontend.
+                if "Actions" in d and "#Chassis.Reset" in d["Actions"]:
+                    if "target" in d["Actions"]["#Chassis.Reset"]:
+                        chasResetTargetUrl = d["Actions"]["#Chassis.Reset"]["target"]
+                        resDb["ChasResetTargetUrl"] = chasResetTargetUrl
+                        updatedResourceDb=True
+                    if "ResetType@Redfish.AllowableValues" in d["Actions"]["#Chassis.Reset"]:
+                        resDb["ActionsResetAllowableValues"]=d["Actions"]["#Chassis.Reset"]["ResetType@Redfish.AllowableValues"]
+                        updatedResourceDb=True
+                    # xg99 todo, support using getActionInfoAllowableValues
+
+            # check if reset type is in allowable values
+            allowableValues=resDb["ActionsResetAllowableValues"]
+            if resetType not in allowableValues:
+                return(400)
+
+            # send Post request to the rackserver  BMC to reset
+            self.rdr.logMsg("INFO","-------- BACKEND sending Post Reset to bmc")
+            resetData = { "ResetType": resetType }
+            reqPostData=json.dumps(resetData)
+
+            rc,r,j,dsys = rft.rfSendRecvRequest("POST", chasUrl,reqData=reqPostData )
+            if rc is not 0:
+                self.rdr.logMsg("ERROR","..........error sending chassis reset to rackserver BMC: {}. rc: {}".format(chassisid,rc))
+                return(19,False) # note: returning non-zero rc, will cause a 500 error from the frontend.
         return(rc)
 
+
     def doChassisOemReseat(self, chassisid ):
-        self.rdr.logMsg("DEBUG","--------BACKEND got POST for Chassis OemReseat--NOT SUPPORTED FOR OBMC")
-        #not supported on open bmc monolythic
-        return(9)
+        self.rdr.logMsg("DEBUG","--------BACKEND POST for Chassis OemReseat")
+        reseatViaPdu=False
+        resDb=self.rdr.root.chassis.chassisDb[chassisid]
+
+        # the front-end has already validated that the patchData and chassisid is ok
+        if "IsTopLevelChassisInAggrRack" in resDb and resDb["IsTopLevelChassisInAggrRack"] is True:
+            # xgTODO 
+            netloc = None
+            chasUrl = None
+            reseatViaPdu = False # for now
+            rc=0
+    
+        # else if chassis is the Mgt Switch chassis 
+        elif "IsMgtSwitchChassisInAggrRack" in resDb and resDb["IsMgtSwitchChassisInAggrRack"] is True:
+            # patch data in MgtSwitch
+            # xgTODO
+            netloc = None
+            chasUrl = None
+            reseatViaPdu = False # for now
+            rc=0
+    
+        # else if chassis is an aggregator Host Server chassis (agg mgr in a separate chassis)
+        elif "IsAggrHostServerChassisInAggrRack" in resDb and resDb["IsAggrHostServerChassisInAggrRack"] is True:
+            # get data from the Aggregator Host server's local bmc
+            # xgTODO
+            netloc = None
+            chasUrl = None
+            reseatViaPdu = False # for now
+            rc=0
+    
+        # else if this is a RackServer chassis (monolythic in the rack)
+        elif "IsRackServerChassis" in resDb and resDb["IsRackServerChassis"] is True:
+            # extract the netloc and chassis entry URL from the chassisDb saved during discovery
+            reseatViaPdu=True
+            netloc = resDb["Netloc"]
+            chasUrl = resDb["ChasUrl"]
+
+        else:
+            rc=9
+
+        # execute below if sendReseatToBmc was set true, and netloc, chasUrl, and rft have been set above
+        if reseatViaPdu is True: 
+            # send Post request to the rackserver  BMC to reseat
+            self.rdr.logMsg("INFO","-------- BACKEND sending msg to smart PDU to Reseat chas")
+            rc=0
+
+        return(rc)
+
+
 
 
     #PATCH Chassis
@@ -192,21 +325,60 @@ class  RdChassisBackend():
     # DO Patch to chassis  (IndicatorLED, AssetTag) 
     # the front-end will send an individual call for IndicatorLED and AssetTag 
     def doPatch(self, chassisid, patchData):
-        # the front-end has already validated that the patchData and chassisid is ok
         # so just send the request here
+        sendPatchToBmc=False
         self.rdr.logMsg("DEBUG","--------BACKEND Patch chassis data. patchData={}".format(patchData))
-        # just call the dbus call to set indicatorLED
-        if "IndicatorLED" in patchData:
-            ledStateVal=patchData["IndicatorLED"]
+        resDb=self.rdr.root.chassis.chassisDb[chassisid]
+
+        # the front-end has already validated that the patchData and chassisid is ok
+        if "IsTopLevelChassisInAggrRack" in resDb and resDb["IsTopLevelChassisInAggrRack"] is True:
+            # xgTODO 
+            netloc = None
+            chasUrl = None
+            sendPatchToBmc = False # for now
             rc=0
-            #rc = self.dbus.setObmcChassisIndicatorLed( ledStateVal )
-        elif "AssetTag" in patchData:
-            assetTagVal=patchData["AssetTag"]
-            rc=0
-            #rc = self.dbus.setObmcChassisIndicatorLed( assetTagVal )
-        else:
-            rc=-9
     
+        # else if chassis is the Mgt Switch chassis 
+        elif "IsMgtSwitchChassisInAggrRack" in resDb and resDb["IsMgtSwitchChassisInAggrRack"] is True:
+            # patch data in MgtSwitch
+            # xgTODO
+            netloc = None
+            chasUrl = None
+            sendPatchToBmc = False # for now
+            rc=0
+    
+        # else if chassis is an aggregator Host Server chassis (agg mgr in a separate chassis)
+        elif "IsAggrHostServerChassisInAggrRack" in resDb and resDb["IsAggrHostServerChassisInAggrRack"] is True:
+            # get data from the Aggregator Host server's local bmc
+            # xgTODO
+            netloc = None
+            chasUrl = None
+            sendPatchToBmc = False # for now
+            rc=0
+    
+        # else if this is a RackServer chassis (monolythic in the rack)
+        elif "IsRackServerChassis" in resDb and resDb["IsRackServerChassis"] is True:
+            # extract the netloc and chassis entry URL from the chassisDb saved during discovery
+            sendPatchToBmc=True
+            netloc = resDb["Netloc"]
+            chasUrl = resDb["ChasUrl"]
+
+            # open Redfish transport to this bmc
+            rft = BmcRedfishTransport(rhost=netloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug,
+                                      credentialsPath=self.rdr.bmcCredentialsPath)
+        else:
+            rc=9
+
+        # execute below if sendPatchToBmc was set true, and netloc, chasUrl, and rft have been set above
+        if sendPatchToBmc is True: 
+            # send PATCH request to the rackserver  BMC to reset
+            self.rdr.logMsg("INFO","-------- BACKEND sending Patch to bmc")
+            reqPatchData=json.dumps(patchData)
+
+            rc,r,j,dsys = rft.rfSendRecvRequest("PATCH", chasUrl,reqData=reqPatchData )
+            if rc is not 0:
+                self.rdr.logMsg("ERROR","..........error sending chassis patch to rackserver BMC: {}. rc: {}".format(chassisid,rc))
+                return(19,False) # note: returning non-zero rc, will cause a 500 error from the frontend.
         return(rc)
 
 
