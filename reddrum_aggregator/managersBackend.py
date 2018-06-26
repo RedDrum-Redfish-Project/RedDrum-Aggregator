@@ -182,8 +182,61 @@ class  RdManagersBackend():
     # DO action:  "Reset", "Hard,
     def doManagerReset(self,managerid,resetType):
         self.rdr.logMsg("DEBUG","--------BACKEND managerReset. resetType={}".format(resetType))
-        #rc=self.dbus.resetObmcMgr(resetType)
-        rc=0
+
+        if self.isManagerTheRackAggregationManager( managerid) is True:
+            # update the db for the aggregation manager
+            # xgTODO
+            return(0)
+
+        if self.isManagerRackServerManager( managerid) is not True:
+            # pass not an aggregation manager here
+            return(0)
+
+        # if here, assume the manager is a bmc in a RackServer
+        self.rdr.logMsg("DEBUG","-------- BACKEND RackServer Manager resetType={}".format(resetType))
+        resDb=self.rdr.root.managers.managersDb[managerid]
+
+        # extract the netloc and system entry URL from the systemsDb saved during discovery
+        netloc = resDb["Netloc"]
+        mgrUrl = resDb["MgrUrl"]
+
+        # open Redfish transport to this bmc
+        rft = BmcRedfishTransport(rhost=netloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug,
+                                      credentialsPath=self.rdr.bmcCredentialsPath)
+        # check if we already have a system reset URI collected
+        if "MgrResetTargetUrl" in resDb:
+            mgrResetTargetUrl = resDb["MgrResetTargetUrl"]
+        else:
+            # send request to the rackserver  BMC to read the system resource
+            rc,r,j,dmgr = rft.rfSendRecvRequest("GET", mgrUrl )
+            if rc is not 0:
+                self.rdr.logMsg("ERROR","..........error getting manager entry from rackserver BMC: {}. rc: {}".format(managerid,rc))
+                return(19,False) # note: returning non-zero rc, will cause a 500 error from the frontend.
+            if "Actions" in dmgr and "#Manager.Reset" in dmgr["Actions"]:
+                if "target" in dmgr["Actions"]["#Manager.Reset"]:
+                    mgrResetTargetUrl = dmgr["Actions"]["#Manager.Reset"]["target"]
+                    resDb["MgrResetTargetUrl"] = mgrResetTargetUrl
+                    updatedResourceDb=True
+                if "ResetType@Redfish.AllowableValues" in dmgr["Actions"]["#Manager.Reset"]:
+                    resDb["ActionsResetAllowableValues"]=dmgr["Actions"]["#Manager.Reset"]["ResetType@Redfish.AllowableValues"]
+                    updatedResourceDb=True
+                # xg99 todo, support using getActionInfoAllowableValues
+
+        # check if reset type is in allowable values
+        allowableValues=resDb["ActionsResetAllowableValues"]
+        if resetType not in allowableValues:
+            return(400)
+
+        # send POST request to the rackserver  BMC to reset
+        self.rdr.logMsg("INFO","-------- BACKEND sending Manager Reset to bmc")
+        resetData={"ResetType": resetType }
+        reqPostData=json.dumps(resetData)
+
+        rc,r,j,dsys = rft.rfSendRecvRequest("POST", mgrResetTargetUrl,reqData=reqPostData )
+        if rc is not 0:
+            self.rdr.logMsg("ERROR","..........error sending manager reset to rackserver BMC: {}. rc: {}".format(managerid,rc))
+            return(19,False) # note: returning non-zero rc, will cause a 500 error from the frontend.
+
         return(rc)
 
 
@@ -193,9 +246,36 @@ class  RdManagersBackend():
         # so just send the request here
         self.rdr.logMsg("DEBUG","--------BACKEND Patch manager: {} data. patchData={}".format(managerid,patchData))
 
-        # for OpenBMC, there are no base manager patches that go to the backend.
-        #              DateTime and DateTimeOffset are handled in the frontend
-        #              Nothing to do here
+        if self.isManagerTheRackAggregationManager( managerid) is True:
+            # update the db for the aggregation manager
+            # xgTODO
+            return(0)
+
+        if self.isManagerRackServerManager( managerid) is not True:
+            # pass not an aggregation manager here
+            return(0)
+
+        # if here, assume the manager is a bmc in a RackServer
+
+        resDb=self.rdr.root.managers.managersDb[managerid]
+
+        # extract the netloc and manager entry URL from the managersDb saved during discovery
+        netloc = resDb["Netloc"]
+        mgrUrl = resDb["MgrUrl"]
+
+        # open Redfish transport to this bmc
+        rft = BmcRedfishTransport(rhost=netloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug,
+                                      credentialsPath=self.rdr.bmcCredentialsPath)
+
+        # send PATCH request to the rackserver  BMC 
+        self.rdr.logMsg("INFO","-------- BACKEND sending Patch to bmc")
+        reqPatchData=json.dumps(patchData)
+
+        rc,r,j,dsys = rft.rfSendRecvRequest("PATCH", mgrUrl,reqData=reqPatchData )
+        if rc is not 0:
+            self.rdr.logMsg("ERROR","..........error sending manager patch to rackserver BMC: {}. rc: {}".format(managerid,rc))
+            return(19,False) # note: returning non-zero rc, will cause a 500 error from the frontend.
+
         return(0)
 
 

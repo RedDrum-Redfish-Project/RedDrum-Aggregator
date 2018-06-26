@@ -4,6 +4,7 @@
 #    License: BSD License.  For full license text see link: https://github.com/RedDrum-Redfish-Project/RedDrum-OpenBMC/LICENSE.txt
 
 import datetime
+import json
 
 from .redfishTransports import  BmcRedfishTransport
 from .ipmiTransports import BmcIpmiTransport
@@ -130,6 +131,16 @@ class  RdSystemsBackend():
                             resDb["ProcessorSummary"][prop]=dsys["ProcessorSummary"][prop]
                             updatedResourceDb=True
 
+        # update Actions Reset AllowableValues
+        if "ActionsResetAllowableValues" in resDb:
+            if "Actions" in dsys and "#ComputerSystem.Reset" in dsys["Actions"]:
+                if "ResetType@Redfish.AllowableValues" in dsys["Actions"]["#ComputerSystem.Reset"]:
+                    resDb["ActionsResetAllowableValues"]=dsys["Actions"]["#ComputerSystem.Reset"]["ResetType@Redfish.AllowableValues"]
+                    updatedResourceDb=True
+                if "target" in dsys["Actions"]["#ComputerSystem.Reset"]:
+                    resDb["SysResetTargetUrl"]=dsys["Actions"]["#ComputerSystem.Reset"]["target"]
+                    updatedResourceDb=True
+
         rc=0
         return(rc,updatedResourceDb)
 
@@ -137,9 +148,49 @@ class  RdSystemsBackend():
     # DO action:   Reset OpenBMC System
     def doSystemReset(self,systemid,resetType):
         self.rdr.logMsg("DEBUG","-------- BACKEND systemReset. resetType={}".format(resetType))
+        resDb=self.rdr.root.systems.systemsDb[systemid]
 
-        #rc=self.dbus.resetObmcSystem(resetType)
-        self.rdr.logMsg("INFO","-------- BACKEND NOT IMPLEMENTED YET")
+        # extract the netloc and system entry URL from the systemsDb saved during discovery
+        netloc = resDb["Netloc"]
+        sysUrl = resDb["SysUrl"]
+
+        # open Redfish transport to this bmc
+        rft = BmcRedfishTransport(rhost=netloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug,
+                                      credentialsPath=self.rdr.bmcCredentialsPath)
+        # check if we already have a system reset URI collected
+        if "SysResetTargetUrl" in resDb:
+            sysResetTargetUrl = resDb["SysResetTargetUrl"]
+        else:
+            # send request to the rackserver  BMC to read the system resource
+            rc,r,j,dsys = rft.rfSendRecvRequest("GET", sysUrl )
+            if rc is not 0:
+                self.rdr.logMsg("ERROR","..........error getting system entry from rackserver BMC: {}. rc: {}".format(systemid,rc))
+                return(19,False) # note: returning non-zero rc, will cause a 500 error from the frontend.
+            if "Actions" in dsys and "#ComputerSystem.Reset" in dsys["Actions"]:
+                if "target" in dsys["Actions"]["#ComputerSystem.Reset"]:
+                    sysResetTargetUrl = dsys["Actions"]["#ComputerSystem.Reset"]["target"]
+                    resDb["SysResetTargetUrl"] = sysResetTargetUrl 
+                    updatedResourceDb=True
+                if "ResetType@Redfish.AllowableValues" in dsys["Actions"]["#ComputerSystem.Reset"]:
+                    resDb["ActionsResetAllowableValues"]=dsys["Actions"]["#ComputerSystem.Reset"]["ResetType@Redfish.AllowableValues"]
+                    updatedResourceDb=True
+                # xg99 todo, support using getActionInfoAllowableValues
+
+        # check if reset type is in allowable values
+        allowableValues=resDb["ActionsResetAllowableValues"]
+        if resetType not in allowableValues:
+            return(400)
+
+        # send POST request to the rackserver  BMC to reset
+        self.rdr.logMsg("INFO","-------- BACKEND sending Reset to bmc")
+        resetData={"ResetType": resetType }
+        reqPostData=json.dumps(resetData)
+
+        rc,r,j,dsys = rft.rfSendRecvRequest("POST", sysResetTargetUrl,reqData=reqPostData )
+        if rc is not 0:
+            self.rdr.logMsg("ERROR","..........error sending system reset to rackserver BMC: {}. rc: {}".format(systemid,rc))
+            return(19,False) # note: returning non-zero rc, will cause a 500 error from the frontend.
+
         return(rc)
 
 
@@ -151,26 +202,29 @@ class  RdSystemsBackend():
     def doPatch(self, systemid, patchData):
         # the front-end has already validated that the patchData and systemid is ok
         # so just send the request here
+
         self.rdr.logMsg("DEBUG","--------BACKEND Patch system data. patchData={}".format(patchData))
+        resDb=self.rdr.root.systems.systemsDb[systemid]
 
-        if "IndicatorLED" in patchData:
-            #rc=self.dbus.setObmcChassisIndicatorLed(patchData["IndicatorLED"])
-            pass
+        # extract the netloc and system entry URL from the systemsDb saved during discovery
+        netloc = resDb["Netloc"]
+        sysUrl = resDb["SysUrl"]
 
-        elif "AssetTag" in patchData:
-            #rc=self.dbus.setObmcAssetTag(patchData["AssetTag"])
-            pass
+        # open Redfish transport to this bmc
+        rft = BmcRedfishTransport(rhost=netloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug,
+                                      credentialsPath=self.rdr.bmcCredentialsPath)
 
-        elif "Boot" in patchData:
-            #rc=self.dbus.setObmcBootSourceOverrideProperties(patchData["Boot"])
-            pass
+        # send PATCH request to the rackserver  BMC to reset
+        self.rdr.logMsg("INFO","-------- BACKEND sending Patch to bmc")
+        reqPatchData=json.dumps(patchData)
 
-        else:
-            return(9) # invalid property send to backend to patch
+        rc,r,j,dsys = rft.rfSendRecvRequest("PATCH", sysUrl,reqData=reqPatchData )
+        if rc is not 0:
+            self.rdr.logMsg("ERROR","..........error sending system patch to rackserver BMC: {}. rc: {}".format(systemid,rc))
+            return(19,False) # note: returning non-zero rc, will cause a 500 error from the frontend.
 
-        rc=0
-        self.rdr.logMsg("INFO","-------- BACKEND NOT IMPLEMENTED YET")
         return(rc)
+
 
 
     # update ProcessorsDb 
