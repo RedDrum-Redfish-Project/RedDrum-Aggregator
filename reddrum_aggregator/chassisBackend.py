@@ -548,7 +548,7 @@ class  RdChassisBackend():
         self.resDb=self.rdr.root.chassis.powerControlDb[chassisid]
         self.resVolDb=self.rdr.root.chassis.powerControlVolatileDict[chassisid]
         self.staticProperties=self.rdr.root.chassis.powerControlStaticProperties
-        self.nonVolatileProperties=[]
+        self.nonVolatileProperties=self.rdr.root.chassis.powerControlNonVolatileProperties
         redisHash="PowerControlMonHashDb"
 
         # call generic methods to update the DBs from the redis hash
@@ -866,7 +866,7 @@ class  RdChassisBackend():
         self.resDb=self.rdr.root.chassis.powerControlDb[chassisid]
         self.resVolDb=self.rdr.root.chassis.powerControlVolatileDict[chassisid]
         self.staticProperties=self.rdr.root.chassis.powerControlStaticProperties
-        self.nonVolatileProperties=[]
+        self.nonVolatileProperties=self.rdr.root.chassis.powerControlNonVolatileProperties
 
         rc, updatedResourceDb=self.aggrGenericUpdateResourceDbs( chassisid, curTime, lastDbUpdateTime )
 
@@ -989,10 +989,9 @@ class  RdChassisBackend():
                 for resId in self.resDb["Id"]:
                     if resId in sysHwMonData["Id"]:
                         for prop in self.staticProperties:
-                            if (prop in self.resDb["Id"][resId]) and (prop in sysHwMonData["Id"][resId]):
-                                if self.resDb["Id"][resId][prop] != sysHwMonData["Id"][resId][prop]:
-                                    self.resDb["Id"][resId][prop]=sysHwMonData["Id"][resId][prop]
-                                    updatedResourceDb=True
+                            if (prop in sysHwMonData["Id"][resId]):
+                                self.resDb["Id"][resId][prop]=sysHwMonData["Id"][resId][prop]
+                                updatedResourceDb=True
 
         # update Volatile Properties
         if ("Id" in self.resDb) and ("Id" in sysHwMonData):
@@ -1028,10 +1027,9 @@ class  RdChassisBackend():
                 for resId in self.resDb["Id"]:
                     if resId in sysHwMonData["Id"]:
                         for prop in self.nonVolatileProperties:
-                            if (prop in self.resDb["Id"][resId]) and (prop in sysHwMonData["Id"][resId]):
-                                if self.resDb["Id"][resId][prop] != sysHwMonData["Id"][resId][prop]:
-                                    self.resDb["Id"][resId][prop]=sysHwMonData["Id"][resId][prop]
-                                    updatedResourceDb=True
+                            if (prop in sysHwMonData["Id"][resId]):
+                                self.resDb["Id"][resId][prop]=sysHwMonData["Id"][resId][prop]
+                                updatedResourceDb=True
 
         rc=0     # 0=ok
         return(rc,updatedResourceDb)
