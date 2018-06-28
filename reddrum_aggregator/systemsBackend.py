@@ -66,10 +66,9 @@ class  RdSystemsBackend():
         # this is generally done once to pickup static data discovered by backend
         if updateStaticProps is True:
             for prop in staticProperties:
-                if (prop in resDb) and (prop in dsys):
-                    if resDb[prop] != dsys[prop]:
-                        resDb[prop]=dsys[prop]
-                        updatedResourceDb=True
+                if (prop in dsys):
+                    resDb[prop]=dsys[prop]
+                    updatedResourceDb=True
 
         # update Volatile Properties
         if "Volatile" in resDb:
@@ -85,51 +84,28 @@ class  RdSystemsBackend():
 
         # update the volatile status properties
         if ("Status" in resDb) and ("Status" in dsys):
-            for prop in resDb["Status"]:
-                if prop in dsys["Status"]:
-                    if "Status" not in resVolDb:
-                        resVolDb["Status"]={}
-                    resVolDb["Status"][prop]=dsys["Status"][prop]
+            for prop in dsys["Status"]:
+                resVolDb["Status"]=dsys["Status"]
 
         # update NonVolatile Properties
         if updateNonVols is True:
             for prop in nonVolatileProperties:
-                if (prop in resDb) and (prop in dsys):
-                    if resDb[prop] != dsys[prop]:
-                        resDb[prop]=dsys[prop]
-                        updatedResourceDb=True
+                if (prop in dsys):
+                    resDb[prop]=dsys[prop]
+                    updatedResourceDb=True
 
         # update NonVolatile MemorySummary Properties
         if (updateNonVols is True) and ("MemorySummary" in resDb) and ("MemorySummary" in dsys):
-            for prop in resDb["MemorySummary"]:
-                if prop in dsys["MemorySummary"]:
-                    if prop == "Status":
-                        for subProp in resDb["MemorySummary"]["Status"]:
-                            if subProp in dsys["MemorySummary"]["Status"]:
-                                if resDb["MemorySummary"]["Status"][subProp] != dsys["MemorySummary"]["Status"][subProp]:
-                                    resDb["MemorySummary"]["Status"][subProp]=dsys["MemorySummary"]["Status"][subProp]
-                                    #print (" The property is " + str(dsys["MemorySummary"]["Status"][prop]))
-                                    updatedResourceDb=True
-                    else: # properties other than Status
-                        if resDb["MemorySummary"][prop] != dsys["MemorySummary"][prop]:
-                            resDb["MemorySummary"][prop]=dsys["MemorySummary"][prop]
-                            #print (" The property is " + str(resDb["MemorySummary"][prop]))
-                            updatedResourceDb=True
+            for prop in dsys["MemorySummary"]:
+                resDb["MemorySummary"][prop]=dsys["MemorySummary"][prop]
+                #print (" The property is " + str(resDb["MemorySummary"][prop]))
+                updatedResourceDb=True
 
         # update NonVolatile ProcessorSummary Properties
         if (updateNonVols is True) and ("ProcessorSummary" in resDb) and ("ProcessorSummary" in dsys):
-            for prop in resDb["ProcessorSummary"]:
-                if prop in dsys["ProcessorSummary"]:
-                    if prop == "Status":
-                        for subProp in resDb["ProcessorSummary"]["Status"]:
-                            if subProp in dsys["ProcessorSummary"]["Status"]:
-                                if resDb["ProcessorSummary"]["Status"][subProp] != dsys["ProcessorSummary"]["Status"][subProp]:
-                                    resDb["ProcessorSummary"]["Status"][subProp]=dsys["ProcessorSummary"]["Status"][subProp]
-                                    updatedResourceDb=True
-                    else: # properties other than Status
-                        if resDb["ProcessorSummary"][prop] != dsys["ProcessorSummary"][prop]:
-                            resDb["ProcessorSummary"][prop]=dsys["ProcessorSummary"][prop]
-                            updatedResourceDb=True
+            for prop in dsys["ProcessorSummary"]:
+                resDb["ProcessorSummary"][prop]=dsys["ProcessorSummary"][prop]
+                updatedResourceDb=True
 
         # update Actions Reset AllowableValues
         if "ActionsResetAllowableValues" in resDb:
@@ -380,7 +356,7 @@ class  RdSystemsBackend():
         # tryRedfishMemoryApis  tryIpmiMemoryApis  tryIpmiStubMemoryApis
         tryRedfishMemoryApis=True # try to use Redfish to get mem inventory from BMC. set to false if it doesn't supt
         tryIpmiMemoryApis=False   # if bmc doesn't support redfish, try IPMI APIs -- not stubs
-        tryIpmiStubMemoryApis=True # if bmc doesn't support redfish, use stub APIs in the ipmi transport
+        tryIpmiStubMemoryApis=False # if bmc doesn't support redfish, use stub APIs in the ipmi transport
         redfishMemoryApiFound=None
         doIpmiCall=False
         sysDbEntry=self.rdr.root.systems.systemsDb[sysid]
@@ -392,36 +368,42 @@ class  RdSystemsBackend():
         memoryInfoProperties=["Name", "DeviceLocator", "SerialNumber","MemoryType",
                               "OperatingSpeedMHz","DataWidthBits","ErrorCorrection",
                               "BaseModuleType","CapacityMiB","BusWidthBits","Manufacturer",
-                              "PartNumber","MemoryDeviceType", "RankCount", "Status" ]
-
+                              "PartNumber","MemoryDeviceType", "RankCount", "Status","MemoryMedia","AllowedSpeedsMhz"
+                              "FirmwareRevision","FirmwareApiVersion","FunctionClasses","VendorID","DeviceId",
+                              "SubsystemVendorID","SubsystemDeviceID","MaxTDPMilliWatts","SecurityCapabilities",
+                              "SpareDeviceCount","MemoryLocation","VolatileRegionSizeLimitMiB","PersistentRegionSizeLimitMiB"
+                              "Regions","OperatingMemoryModes","PowerManagementPolicy","IsSpareDeviceEnabled",
+                              "IsRankSpareEnabled" ]
         # open Redfish transport to this bmc
         nodeRft = BmcRedfishTransport(rhost=sysNetloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug,
                                       credentialsPath=self.rdr.bmcCredentialsPath)
 
         if tryRedfishMemoryApis is True:
+            #print("EEEEEEEEEEEEEEEEEE sysurl: {}".format(sysUrl))
             # check if we already have the URI for the processors collection 
             if "MemoryUri" in sysDbEntry:
                 memoryUri=sysDbEntry["MemoryUri"]
                 redfishMemoryApiFound=True
             else:
-                if not "RedfishMemoryApisNotFound" in sysDbEntry:
-                    # if we havent already check to see if bmc support Rf api
-                    # we need to query the systemEntry to get the Memory collection URI
-                    self.rdr.logMsg("DEBUG","--------BACKEND memoryUri not in database. getting root. sysid={}".format(sysid))
-                    # send request to the rackserver  BMC
-                    rc,r,j,dsys = nodeRft.rfSendRecvRequest("GET", sysUrl )
-                    if rc is not 0:
-                        self.rdr.logMsg("ERROR","..........error getting service root entry rc: {}".format(rc))
-                        return(18) # note: returning non-zero rc, will cause a 500 error from the frontend.
-                    if "Memory" in dsys and "@odata.id" in dsys["Memory"]:
-                        memoryUri=dsys["Memory"]["@odata.id"]
-                        sysDbEntry["MemoryUri"]=memoryUri
-                        redfishMemoryApiFound=True
-                    else:
-                        self.rdr.logMsg("INFO","..........No Memory property in SystemEntry-using stub: {}".format(rc))
-                        #return(17) # note: returning non-zero rc, will cause a 500 error from the frontend.
-                        redfishMemoryApiFound=False
-                        sysDbEntry["RedfishMemoryApisNotFound"]=False
+                #if not "RedfishMemoryApisNotFound" in sysDbEntry:
+                # if we havent already check to see if bmc support Rf api
+                # we need to query the systemEntry to get the Memory collection URI
+                self.rdr.logMsg("DEBUG","--------BACKEND memoryUri not in database. getting root. sysid={}".format(sysid))
+                # send request to the rackserver  BMC
+                rc,r,j,dsys = nodeRft.rfSendRecvRequest("GET", sysUrl )
+                if rc is not 0:
+                    self.rdr.logMsg("ERROR","..........error getting service root entry rc: {}".format(rc))
+                    return(18) # note: returning non-zero rc, will cause a 500 error from the frontend.
+                if "Memory" in dsys and "@odata.id" in dsys["Memory"]:
+                    memoryUri=dsys["Memory"]["@odata.id"]
+                    sysDbEntry["MemoryUri"]=memoryUri
+                    redfishMemoryApiFound=True
+                    #print("EEEE: memUri: {} ",format(memoryUri))
+                else:
+                    self.rdr.logMsg("INFO","..........No Memory property in SystemEntry-{}".format(rc))
+                    #return(17) # note: returning non-zero rc, will cause a 500 error from the frontend.
+                    redfishMemoryApiFound=False
+                    sysDbEntry["RedfishMemoryApisNotFound"]=False
 
         # update the base level memory Db entry 
         if sysid not in memDb:
@@ -434,7 +416,7 @@ class  RdSystemsBackend():
         if tryRedfishMemoryApis is True and redfishMemoryApiFound is True:
             # process response from Redfish API response from the BMC
             # Get the Memory Collection from the Node
-            self.rdr.logMsg("DEBUG","eeeeeeeeeeeeprocUri: {}".format(memoryUri))
+            #self.rdr.logMsg("DEBUG","eeeeeeeeeeeeprocUri: {}".format(memoryUri))
             rc,r,j,dCollection=nodeRft.rfSendRecvRequest("GET",memoryUri)
             if( (rc== 0) and (r.status_code==200) and (j is True)):
                 # walk the collection members and read each member to get its Id and data
@@ -446,7 +428,7 @@ class  RdSystemsBackend():
                         if( rc== 0 ):
                             # save the entry
                             memberId=d["Id"]
-                            if memberId not in procDb[sysid]["Id"]:
+                            if memberId not in memDb[sysid]["Id"]:
                                 memDb[sysid]["Id"][memberId]={}
                             for prop in memoryInfoProperties:
                                 if prop in d:
@@ -668,7 +650,13 @@ class  RdSystemsBackend():
         ethernetInterfacesUri=None
         maxCollectionEntries = 8
 
-        ethernetInterfaceProperties=["Name", "MACAddress", "PermanentMACAddress" ]
+        ethernetInterfaceProperties=["Name", "UefiDevicePath", "Status", "InterfaceEnabled", "PermanentMACAddress",
+                "MACAddress", "SpeedMbps", "AutoNeg", "FullDuplex", "MTUSize", "HostName", "FQDN",
+                "MaxIPv6StaticAddresses", "VLAN", "IPv4Addresses", "IPv6Addresses", "IPv6StaticAddresses",
+                "IPv6AddressPolicyTable","IPv6DefaultGateway","NameServers" ]
+
+        ethNavProperties=["VLANs"]
+
 
         # open Redfish transport to this bmc
         nodeRft = BmcRedfishTransport(rhost=sysNetloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug,
