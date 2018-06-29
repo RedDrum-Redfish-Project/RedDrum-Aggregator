@@ -38,6 +38,7 @@ class RdAggrPDUlinuxInterfaces():
     def reseatRackServer(self, chasId, bmcNetloc, pduSocketId, pduCommand):
         exitcode = 5
         response={}
+        print("AAAAAAAAAAAAAA")
 
         if chasId is None and pduSocketId is None:
             return(exitcode,response)
@@ -51,6 +52,7 @@ class RdAggrPDUlinuxInterfaces():
         if bmcNetloc is None:
             bmcNetloc = ""
 
+        print("AAAAAAAAAAAAAA")
 
         #return(exitcode,protoInfo)
         scriptPath = os.path.join(self.rdr.backend.backendScriptsPath, "pduApiScript.sh")
@@ -58,21 +60,29 @@ class RdAggrPDUlinuxInterfaces():
         arg2 = bmcNetloc # string that represents the netloc eg: 127.0.0.1:3333 or 192.0.3.3 
         arg3 = pduSocketId # string that represents a specific pdu socket id. 
         arg4 = pduCommand  # string that represents a specific command sent to the PDU script. 
+        arg5 = self.rdr.backend.backendScriptsPath # path to dir with scripts
 
+        print("AAAAAAAAAAAAAA")
         #run the script
-        proc = Popen([scriptPath,arg1,arg2,arg3,arg4],stdout=PIPE,stderr=PIPE)
+        proc = Popen([scriptPath,arg1,arg2,arg3,arg4,arg5],stdout=PIPE,stderr=PIPE)
         out,err=proc.communicate()
         exitcode=proc.returncode
+        print("STDERR: {}".format(err))
+        print("STDOUT: {}".format(out))
 
+        print("BBBBBBBBBBBBBB")
         # handle error case running script
         if exitcode != 0:
             response={}
             return(exitcode,response)
 
+        print("BBBBBBBBBBBBBB")
+        
         # else process the output
         #  getObmcProtocolInfo.sh outputs a json response structure with properties 
         #  load to a json struct
         getOutputString = str(out, encoding='UTF-8')   # convert output from bytes to utf8 string. 
+        print("OUTSTRING: {}".format(getOutputString))
         response=json.loads(getOutputString )
         return(exitcode,response)
 

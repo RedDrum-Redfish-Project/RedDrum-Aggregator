@@ -28,6 +28,7 @@ class  RdSystemsBackend():
         resVolDb=self.rdr.root.systems.systemsVolatileDict[systemid]
         staticProperties=self.rdr.root.systems.staticProperties
         nonVolatileProperties=self.rdr.root.systems.nonVolatileProperties
+        bootSourceVolatileProperties=self.rdr.root.systems.bootSourceVolatileProperties
 
         updatedResourceDb=False
 
@@ -77,15 +78,25 @@ class  RdSystemsBackend():
                     resVolDb[prop]=dsys[prop]
 
         # then update the volatile boot properties
-        if ("BootSourceAllowableValues" in resDb) and ("BootSourceVolatileProperties" in resDb) and ("Boot" in dsys):
-            for prop in resDb["BootSourceVolatileProperties"]:
+        if ("BootSourceAllowableValues" in resDb) and ("Boot" in dsys):
+            for prop in bootSourceVolatileProperties:
                 if prop in dsys["Boot"]:
                     resVolDb[prop]=dsys["Boot"][prop]
+                    if "BootSourcePatchableProperties" not in resDb:
+                        resDb["BootSourcePatchableProperties"]=[]
+                    resDb["BootSourcePatchableProperties"].append(prop)
+            if "BootSourceOverrideTarget@Redfish.AllowableValues" in dsys["Boot"]:
+                resDb["BootSourceAllowableValues"] = dsys["Boot"]["BootSourceOverrideTarget@Redfish.AllowableValues"]
+        #xg99
+        #print("YYYYYYYYYYYYYYYYYYYYYYYYYYY")
+        #print(" BootSourceVolatileProps:  {}".format(resDb["BootSourceAllowableValues"]))
+        #print(" BootSourcePatchableProps: {}".format(resDb["BootSourcePatchableProperties"]))
+        #print(" BootSourceOverrideTarget: {}".format(resDb["BootSourceAllowableValues"]))
+
 
         # update the volatile status properties
         if ("Status" in resDb) and ("Status" in dsys):
-            for prop in dsys["Status"]:
-                resVolDb["Status"]=dsys["Status"]
+            resVolDb["Status"]=dsys["Status"]
 
         # update NonVolatile Properties
         if updateNonVols is True:
@@ -116,6 +127,16 @@ class  RdSystemsBackend():
                 if "target" in dsys["Actions"]["#ComputerSystem.Reset"]:
                     resDb["SysResetTargetUrl"]=dsys["Actions"]["#ComputerSystem.Reset"]["target"]
                     updatedResourceDb=True
+
+        # update TrustedModules and HostWatchdogTimer
+        if "TrustedModules" in dsys:
+            resDb["TrustedModules"] = dsys["TrustedModules"]
+        if "HostWatchdogTimer" in dsys:
+            resDb["HostWatchdogTimer"] = dsys["HostWatchdogTimer"]
+
+        # get Dell oem
+        if "OemDell" in resDb and "Oem" in dsys and "Dell" in dsys["Oem"]:
+            resDb["OemDell"] = dsys["Oem"]["Dell"]
 
         rc=0
         return(rc,updatedResourceDb)
