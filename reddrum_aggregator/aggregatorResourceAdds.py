@@ -301,7 +301,7 @@ class RfaResourceAdds():
         resp["ActionsResetAllowableValues"]=["GracefulRestart","ForceRestart"]
         resp["BaseNavigationProperties"]=["NetworkProtocol","EthernetInterfaces","LogServices"] # in BaseServerProfile
 
-        resp["GetDateTimeFromOS"]=True
+        resp["GetDateTimeFromOS"]=False
         resp["ServiceEntryPointUUID"]=None  
         resp["DateTime"]=None  
         resp["DateTimeLocalOffset"]=None  
@@ -348,6 +348,9 @@ class RfaResourceAdds():
         # hard coded Rackscale properties xg
         if self.beData.includeRackScaleOemProperties:
             resp["OemRackScaleSystem"]= { "ProcessorSockets": 2, "MemorySockets": 16, "DiscoveryState": "Basic" }
+
+        #add oemTarget support
+        resp["AddOemActions"]=True
 
         return(bmcMgrId,resp)
 
