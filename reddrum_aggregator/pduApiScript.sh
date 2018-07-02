@@ -14,21 +14,32 @@ chasId=$1
 bmcNetloc=$2
 pduSocketId=$3
 pduCommand=$4
+mapFilePath=$5
 
 function reseat_command { 
   PDUCMD=$1
   username=$2
   password=$3
-  pdu_timeout=10
+  pdu_timeout=1
   expect <<- DONE
   set timeout $pdu_timeout
-  spawn $PDUCMD
+  spawn $PDUCMD 
   expect {
+      timeout         { send_user "timeout-during-login   " }
       "*ser Name*"    { send "${username}\r"; exp_continue }
       "*assword*"     { send "${password}\r"; exp_continue }
-      "*apc>*"        { send "olOff ${pduSocketId}\r"; exp_continue }
-      "*apc>*"        { sleep 2; send "olOn ${pduSocketId}\r"; exp_continue }
-      "*apc>*"        { exp_continue }
+      "*apc>*"        
+  }
+
+  send "olOff ${pduSocketId}\r"
+  expect {
+      timeout         { send_user "timeout-after-olOff   " }
+      "*apc>*" 
+  }
+  sleep 2
+  send "olOn ${pduSocketId}\r"
+  expect {
+      timeout         { send_user "timeout-after-olOn   " }
       "*apc>*"
   }
 DONE
@@ -42,7 +53,10 @@ if [ "${chasId}" == "" -a "${pduSocketId}" == "" ]; then
 fi
 
 # source the pdu map file to get pdu outlet to server mappings as well as pdu netloc
-source ./pduChasIdMap.sh
+if [ "${mapFilePath}" == "" ]; then
+    mapFilePath="."
+fi
+source ${mapFilePath}/pduChasIdMap.sh
 pduNetloc=${XPDU_netloc}
 pduUsername=${XPDU_username}
 pduPassword=${XPDU_password}
@@ -55,6 +69,7 @@ if [ "${pduSocketId}" == "" ]; then
         pduSocketId=${!mapSvrId}
         echo "chasId: ${chasId}, pduSocketId: ${pduSocketId}" >&2 #debug to stderr
 fi 
+#pduCommand="DEBUG"
 
 # now process the different commands
 if [ "${pduCommand}" == "RESEAT" ]; then
@@ -62,7 +77,7 @@ if [ "${pduCommand}" == "RESEAT" ]; then
     # power off and on
     #PDUCMD="ssh ${pduNetloc}"
     PDUCMD="telnet ${pduNetloc}" 
-    reseat_command "$PDUCMD" "${pduUsername}" "${pduPassword}"
+    reseat_command "$PDUCMD" "${pduUsername}" "${pduPassword}" 1>&2
     # return empty dict to stdout and exit with exit code 0 if no error
     echo "{}"
     exit 0
@@ -70,11 +85,11 @@ if [ "${pduCommand}" == "RESEAT" ]; then
 elif [ "${pduCommand}" == "DEBUG" ]; then
     echo "Run DEBUG cmd" >&2  #debug to stderr
     echo "{"
-    echo "    \"ChasId\":      \"${chasId}\" },"
-    echo "    \"PduSocketId\": \"${pduSocketId}\" },"
-    echo "    \"PduCommand\":  \"${pduCommand}\" },"
-    echo "    \"BmcNetloc\":  \"${bmcNetloc}\" }"
-    echo "    \"PduNetloc\":  \"${pduNetloc}\" }"
+    echo "    \"ChasId\":      \"${chasId}\","
+    echo "    \"PduSocketId\": \"${pduSocketId}\","
+    echo "    \"PduCommand\":  \"${pduCommand}\","
+    echo "    \"BmcNetloc\":  \"${bmcNetloc}\","
+    echo "    \"PduNetloc\":  \"${pduNetloc}\""
     echo "}"
     exit 0
     

@@ -6,6 +6,7 @@
 import time,json
 import datetime
 from .redfishTransports import BmcRedfishTransport
+from .pduInterfaces import RdAggrPDUlinuxInterfaces
 
 # RedDrum-Aggregator chassisBackend resources
 #
@@ -20,7 +21,7 @@ class  RdChassisBackend():
 
 
     # update resourceDB and volatileDict properties for a base Chassis GET
-    def updateResourceDbs(self,chassisid, updateStaticProps=False, updateNonVols=True ):
+    def updateResourceDbs(self,chassisid, updateStaticProps=True, updateNonVols=True ):
         self.rdr.logMsg("DEBUG","--------BACKEND updateResourceDBs. updateStaticProps={}".format(updateStaticProps))
         resDb=self.rdr.root.chassis.chassisDb[chassisid]
         resVolDb=self.rdr.root.chassis.chassisVolatileDict[chassisid]
@@ -145,10 +146,9 @@ class  RdChassisBackend():
         # this is generally done once to pickup static data discovered by backend
         if updateStaticProps is True:
             for prop in staticProperties:
-                if (prop in resDb) and (prop in sysHwMonData):
-                    if resDb[prop] != sysHwMonData[prop]:
-                        resDb[prop]=sysHwMonData[prop]
-                        updatedResourceDb=True
+                if (prop in sysHwMonData):
+                    resDb[prop]=sysHwMonData[prop]
+                    updatedResourceDb=True
 
         # update Volatile Properties
         if "Volatile" in resDb:
@@ -158,18 +158,15 @@ class  RdChassisBackend():
 
         # update the volatile status properties
         if ("Status" in resDb) and ("Status" in sysHwMonData):
-            for prop in resDb["Status"]:
-                if prop in sysHwMonData["Status"]:
-                    if "Status" not in resVolDb:
-                        resVolDb["Status"]={}
-                    resVolDb["Status"][prop]=sysHwMonData["Status"][prop]
+            resVolDb["Status"]=sysHwMonData["Status"]
+            resDb["Status"]=sysHwMonData["Status"]
+
         # update NonVolatile Properties
         if updateNonVols is True:
             for prop in nonVolatileProperties:
-                if (prop in resDb) and (prop in sysHwMonData):
-                    if resDb[prop] != sysHwMonData[prop]:
-                        resDb[prop]=sysHwMonData[prop]
-                        updatedResourceDb=True
+                if (prop in sysHwMonData):
+                    resDb[prop]=sysHwMonData[prop]
+                    updatedResourceDb=True
 
         # update Actions Reset AllowableValues
         if "ActionsResetAllowableValues" in resDb:
@@ -180,6 +177,7 @@ class  RdChassisBackend():
                 if "target" in sysHwMonData["Actions"]["#Chassis.Reset"]:
                     resDb["SysResetTargetUrl"]=sysHwMonData["Actions"]["#Chassis.Reset"]["target"]
                     updatedResourceDb=True
+        # set related items
 
         rc=0     # 0=ok
         return(rc,updatedResourceDb)
@@ -312,8 +310,14 @@ class  RdChassisBackend():
         if reseatViaPdu is True: 
             # send Post request to the rackserver  BMC to reseat
             self.rdr.logMsg("INFO","-------- BACKEND sending msg to smart PDU to Reseat chas")
-            rc=0
-
+            pdu = RdAggrPDUlinuxInterfaces(self.rdr)
+            if "Netloc" in resDb:
+                bmcNetloc = resDb["Netloc"]
+            else:
+                return(7)
+            pduSocketId = None   # let the API lookup the socket based on chassisid
+            pduCommand = "RESEAT"
+            rc,resp = pdu.reseatRackServer( chassisid, bmcNetloc, pduSocketId, pduCommand)
         return(rc)
 
 
@@ -381,6 +385,31 @@ class  RdChassisBackend():
                 return(19,False) # note: returning non-zero rc, will cause a 500 error from the frontend.
         return(rc)
 
+    def patchPowerControl(self, chassisid, patchData):
+        # patchData is a single property
+        # xg9999 add error handling
+        sendPatchToBmc=False
+        self.rdr.logMsg("DEBUG","--------BACKEND Patch PowerLimit data. patchData={}".format(patchData))
+        resDb=self.rdr.root.chassis.chassisDb[chassisid]
+        powerLimitDict=dict()
+        for var in patchData:
+            powerLimitDict[var]=patchData[var]
+        bmcPatchDict={"PowerControl": [ { "PowerLimit": powerLimitDict } ] }
+        reqPatchData=json.dumps(bmcPatchDict)
+
+        x=True
+        if x is True:
+            netloc = resDb["Netloc"]
+            chasUrl = resDb["ChasUrl"]
+            powerUrl=resDb["PowerUrl"]
+
+            # open Redfish transport to this bmc
+            rft = BmcRedfishTransport(rhost=netloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug,
+                                      credentialsPath=self.rdr.bmcCredentialsPath)
+            rc,r,j,dsys = rft.rfSendRecvRequest("PATCH", powerUrl,reqData=reqPatchData )
+        return(rc)
+        
+
 
     # check if this chassis is a rack aggregation chassis
     #    -returns True or False
@@ -429,7 +458,7 @@ class  RdChassisBackend():
 
     # update Temperatures resourceDB and volatileDict properties
     # returns: rc, updatedResourceDb(T/F).  rc=0 if no error
-    def updateTemperaturesResourceDbs(self, chassisid, updateStaticProps=False, updateNonVols=True ):
+    def updateTemperaturesResourceDbs(self, chassisid, updateStaticProps=True, updateNonVols=True ):
         self.rdr.logMsg("DEBUG","--------BE updateTemperaturesResourceDBs. updateStaticProps={}".format(updateStaticProps))
 
         # The aggregator will update all "thermal" Dbs (temperaturesDb + fansDb) when the Frontend calls this api
@@ -460,7 +489,7 @@ class  RdChassisBackend():
 
     # update Fans resourceDB and volatileDict properties
     # returns: rc, updatedResourceDb(T/F).  rc=0 if no error
-    def updateFansResourceDbs(self, chassisid, updateStaticProps=False, updateNonVols=True ):
+    def updateFansResourceDbs(self, chassisid, updateStaticProps=True, updateNonVols=True ):
         self.rdr.logMsg("DEBUG","--------BE updateFansResourceDBs. updateStaticProps={}".format(updateStaticProps))
 
         # The aggregator updates FansDb when updateTemperatureResourceDbs is called. so just return ok here 
@@ -496,7 +525,7 @@ class  RdChassisBackend():
 
     # update Voltages resourceDB and volatileDict properties
     # returns: rc, updatedResourceDb(T/F).  rc=0 if no error
-    def updateVoltagesResourceDbs(self, chassisid, updateStaticProps=False, updateNonVols=True ):
+    def updateVoltagesResourceDbs(self, chassisid, updateStaticProps=True, updateNonVols=True ):
         self.rdr.logMsg("DEBUG","--------BE updateVoltagesResourceDBs. updateStaticProps={}".format(updateStaticProps))
 
         # The aggregator will update all "power" Dbs (voltagesDb + powerControlDb + powerSuppliesDb) when the Frontend 
@@ -530,7 +559,7 @@ class  RdChassisBackend():
 
     # update PowerControl resourceDB and volatileDict properties
     # returns: rc, updatedResourceDb(T/F).  rc=0 if no error
-    def updatePowerControlResourceDbs(self, chassisid, updateStaticProps=False, updateNonVols=True ):
+    def updatePowerControlResourceDbs(self, chassisid, updateStaticProps=True, updateNonVols=True ):
         self.rdr.logMsg("DEBUG","--------BE updatePowerControlResourceDBs. updateStaticProps={}".format(updateStaticProps))
 
         # The aggregator updates powerControlDb when updateVoltagesResourceDbs is called. so just return ok here 
@@ -564,7 +593,7 @@ class  RdChassisBackend():
 
     # update PowerSupplies resourceDB and volatileDict properties
     # returns: rc, updatedResourceDb(T/F).  rc=0 if no error
-    def updatePowerSuppliesResourceDbs(self, chassisid, updateStaticProps=False, updateNonVols=True ):
+    def updatePowerSuppliesResourceDbs(self, chassisid, updateStaticProps=True, updateNonVols=True ):
         self.rdr.logMsg("DEBUG","--------BE updatePowerSuppliesResourceDBs. updateStaticProps={}".format(updateStaticProps))
         # The aggregator updates powerControlDb when updateVoltagesResourceDbs is called. so just return ok here 
         if self.isChassisAnAggregationRackChassis(chassisid) is True:
@@ -684,6 +713,8 @@ class  RdChassisBackend():
             for sensor in d["Temperatures"]:
                 if "MemberId" in sensor:
                     sensorId=sensor["MemberId"]
+                    if any ( i in sensorId for i in "#"):
+                        sensorId = sensorId.replace("#","-")
                     self.sysHwMonData["Id"][sensorId] = {}
                     self.sysHwMonData["Id"][sensorId]["Volatile"]=["ReadingCelsius"]
                     self.sysHwMonData["Id"][sensorId]["AddRelatedItems"]=["Chassis","System"]
@@ -707,6 +738,8 @@ class  RdChassisBackend():
             for sensor in d["Fans"]:
                 if "MemberId" in sensor:
                     sensorId=sensor["MemberId"]
+                    if any ( i in sensorId for i in "#"):
+                        sensorId = sensorId.replace("#","-")
                     self.sysHwMonData["Id"][sensorId] = {}
                     self.sysHwMonData["Id"][sensorId]["Volatile"]=["Reading"]
                     self.sysHwMonData["Id"][sensorId]["AddRelatedItems"]=["Chassis","System"]
@@ -717,6 +750,8 @@ class  RdChassisBackend():
             for entry in d["Redundancy"]:
                 if "MemberId" in entry:
                     redGrpId=entry["MemberId"]
+                    if any ( i in redGrpId for i in "#"):
+                        redGrpId = redGrpId.replace("#","-")
                     self.sysHwMonData["RedundancyGroup"][redGrpId] = {}
                     for prop in entry:
                         self.sysHwMonData["RedundancyGroup"][redGrpId][prop]=entry[prop]
@@ -801,6 +836,8 @@ class  RdChassisBackend():
             for sensor in d["Voltages"]:
                 if "MemberId" in sensor:
                     sensorId=sensor["MemberId"]
+                    if any ( i in sensorId for i in "#"):
+                        sensorId = sensorId.replace("#","-")
                     self.sysHwMonData["Id"][sensorId] = {}
                     self.sysHwMonData["Id"][sensorId]["Volatile"]=["ReadingVolts"]
                     self.sysHwMonData["Id"][sensorId]["AddRelatedItems"]=["Chassis","System"]
@@ -824,6 +861,8 @@ class  RdChassisBackend():
             for sensor in d["PowerSupplies"]:
                 if "MemberId" in sensor:
                     sensorId=sensor["MemberId"]
+                    if any ( i in sensorId for i in "#"):
+                        sensorId = sensorId.replace("#","-")
                     self.sysHwMonData["Id"][sensorId] = {}
                     self.sysHwMonData["Id"][sensorId]["Volatile"]=["LineInputVoltage","LastPowerOutputWatts"]
                     self.sysHwMonData["Id"][sensorId]["AddRelatedItems"]=["Chassis","System"]
@@ -853,14 +892,25 @@ class  RdChassisBackend():
         self.sysHwMonData=dict()
         self.sysHwMonData["Id"]={}
         if "PowerControl" in d:
+            powerCntlId=0
             for sensor in d["PowerControl"]:
-                if "MemberId" in sensor:
-                    sensorId=sensor["MemberId"]
-                    self.sysHwMonData["Id"][sensorId] = {}
-                    self.sysHwMonData["Id"][sensorId]["Volatile"]=["PowerConsumedWatts"]
-                    self.sysHwMonData["Id"][sensorId]["AddRelatedItems"]=["Chassis","System"]
-                    for prop in sensor:
-                        self.sysHwMonData["Id"][sensorId][prop]=sensor[prop]
+                #print("AAAsensor: {}".format(sensor))
+                #sensorId=sensor["MemberId"]
+                sensorId=str(powerCntlId)
+                self.sysHwMonData["Id"][sensorId] = {}
+                self.sysHwMonData["Id"][sensorId]["Volatile"]=["PowerConsumedWatts" ]
+                self.sysHwMonData["Id"][sensorId]["AddRelatedItems"]=["Chassis","System"]
+                for prop in sensor:
+                    self.sysHwMonData["Id"][sensorId][prop]=sensor[prop]
+                # fix powerLimit which is stored flat
+                if "PowerLimit" in self.sysHwMonData["Id"][sensorId]:
+                    self.sysHwMonData["Id"][sensorId]["Patchable"]= []
+                    for prop in self.sysHwMonData["Id"][sensorId]["PowerLimit"]:
+                        self.sysHwMonData["Id"][sensorId][prop]= self.sysHwMonData["Id"][sensorId]["PowerLimit"][prop]
+                        self.sysHwMonData["Id"][sensorId]["Patchable"].append(prop)
+                #print("EEEE: {}".format(sensorId))
+                powerCntlId=powerCntlId+1
+                        
 
         # set properties to point to powerControl DBs 
         self.resDb=self.rdr.root.chassis.powerControlDb[chassisid]
@@ -873,6 +923,7 @@ class  RdChassisBackend():
 
         return(rc,updatedResourceDb)
         #xg999777
+
         
     # if redisHash is None, then the sysHwMonData is taken from self.sysHwMonData
     def aggrGenericUpdateResourceDbs(self, chassisid, curTime, lastDbUpdateTime ):
@@ -933,9 +984,15 @@ class  RdChassisBackend():
                         updatedResourceDb=True
 
         # other reddrum props
-        redDrumNonVolatiles=["Volatile","AddRelatedItems","RedundancyGroup"]
+        redDrumNonVolatiles=["Volatile","AddRelatedItems","RedundancyGroup","Patchable"]
+        powerLimitProps = self.rdr.root.chassis.powerControlPowerLimitNonVolatileProperties
+        #["LimitInWatts", "LimitException", "CorrectionInMs" ]
         for resId in sysHwMonData["Id"]:
             for prop in redDrumNonVolatiles:
+                if prop in sysHwMonData["Id"][resId]:
+                    self.resDb["Id"][resId][prop]=sysHwMonData["Id"][resId][prop]
+                    updatedResourceDb=True
+            for prop in powerLimitProps:
                 if prop in sysHwMonData["Id"][resId]:
                     self.resDb["Id"][resId][prop]=sysHwMonData["Id"][resId][prop]
                     updatedResourceDb=True
@@ -946,7 +1003,7 @@ class  RdChassisBackend():
 
     # the std dss9000 update
     def genericUpdateResourceDbs(self, chassisid, curTime, lastDbUpdateTime, redisHash, 
-                                   updateStaticProps=False, updateNonVols=True ):
+                                   updateStaticProps=True, updateNonVols=True ):
 
         updatedResourceDb=False
 
@@ -986,25 +1043,23 @@ class  RdChassisBackend():
         # this is generally done once to pickup static data discovered by backend
         if updateStaticProps is True:
             if ("Id" in self.resDb) and ("Id" in sysHwMonData):
-                for resId in self.resDb["Id"]:
-                    if resId in sysHwMonData["Id"]:
-                        for prop in self.staticProperties:
-                            if (prop in sysHwMonData["Id"][resId]):
-                                self.resDb["Id"][resId][prop]=sysHwMonData["Id"][resId][prop]
-                                updatedResourceDb=True
+                for resId in sysHwMonData["Id"]:
+                    for prop in self.staticProperties:
+                        if (prop in sysHwMonData["Id"][resId]):
+                            self.resDb["Id"][resId][prop]=sysHwMonData["Id"][resId][prop]
+                            updatedResourceDb=True
 
         # update Volatile Properties
         if ("Id" in self.resDb) and ("Id" in sysHwMonData):
-            for resId in self.resDb["Id"]:
-                if resId in sysHwMonData["Id"]:
-                    if "Volatile" in self.resDb["Id"][resId]:
-                        for prop in self.resDb["Id"][resId]["Volatile"]:
-                            if prop in sysHwMonData["Id"][resId]:
-                                if "Id" not in self.resVolDb:
-                                    self.resVolDb["Id"]={}
-                                if resId not in self.resVolDb["Id"]:
-                                    self.resVolDb["Id"][resId]={}
-                                self.resVolDb["Id"][resId][prop]=sysHwMonData["Id"][resId][prop]
+            for resId in sysHwMonData["Id"]:
+                if "Volatile" in self.resDb["Id"][resId]:
+                    for prop in self.resDb["Id"][resId]["Volatile"]:
+                        if prop in sysHwMonData["Id"][resId]:
+                            if "Id" not in self.resVolDb:
+                                self.resVolDb["Id"]={}
+                            if resId not in self.resVolDb["Id"]:
+                                self.resVolDb["Id"][resId]={}
+                            self.resVolDb["Id"][resId][prop]=sysHwMonData["Id"][resId][prop]
 
         # update the volatile status properties
         if ("Id" in self.resDb) and ("Id" in sysHwMonData):

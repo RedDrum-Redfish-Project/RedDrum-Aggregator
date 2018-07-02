@@ -199,9 +199,10 @@ class RfaResourceAdds():
         managedByList = [ bmcMgrId, aggMgrId ]
         resp["ManagedBy"]=managedByList
         resp["Patchable"]=["IndicatorLED"]
-        resp["Volatile"]=["PowerState", "IndicatorLED"]
+        resp["Volatile"]=["PowerState", "IndicatorLED", "PhysicalSecurity"]
         resp["DiscoveredBy"]="Dynamic"
         resp["ComputerSystems"]=[svrId]
+        resp["ActionsOemSledReseat"]=True
         resp["Oem"]={}
         return(chasId,resp)
 
@@ -228,9 +229,9 @@ class RfaResourceAdds():
         resp["ActionsResetAllowableValues"]=["On","ForceOff","GracefulShutdown","GracefulRestart","ForceRestart"]
         resp["Volatile"]=["PowerState", "IndicatorLED"]
         resp["Patchable"]=["IndicatorLED" ]
-        resp["BootSourceVolatileProperties"]=["BootSourceOverrideEnabled","BootSourceOverrideTarget"]
-        resp["BootSourcePatchableProperties"]= ["BootSourceOverrideEnabled","BootSourceOverrideTarget"]
-        resp["BootSourceAllowableValues"]=["None","Pxe","Hdd","BiosSetup","Cd","Floppy"]
+        resp["BootSourceVolatileProperties"]=[]
+        resp["BootSourcePatchableProperties"]= []
+        resp["BootSourceAllowableValues"]=[]
         resp["ProcessorSummary"]={"Count": None,"Model": None,"Status": {"State": None,"Health": None} }
         resp["MemorySummary"]={"TotalSystemMemoryGiB": None,"Status": {"State": None,"Health": None}}
         resp["Model"]=None
@@ -248,6 +249,9 @@ class RfaResourceAdds():
         resp["OemDellG5MgtNetworkInfo"]["MgtNetworkIP"]=svrNetloc
         resp["OemDellG5MgtNetworkInfo"]["MgtNetworkMAC"]=svrMac
         resp["OemDellG5MgtNetworkInfo"]["MgtNetworkEnableStatus"]="ENABLED"
+
+        # add Dell oem data
+        resp["OemDell"]=True
 
         # the following are defaults and on first call to the system the backend may update these
         # hard coded Rackscale properties xg
@@ -297,7 +301,7 @@ class RfaResourceAdds():
         resp["ActionsResetAllowableValues"]=["GracefulRestart","ForceRestart"]
         resp["BaseNavigationProperties"]=["NetworkProtocol","EthernetInterfaces","LogServices"] # in BaseServerProfile
 
-        resp["GetDateTimeFromOS"]=True
+        resp["GetDateTimeFromOS"]=False
         resp["ServiceEntryPointUUID"]=None  
         resp["DateTime"]=None  
         resp["DateTimeLocalOffset"]=None  
@@ -344,6 +348,9 @@ class RfaResourceAdds():
         # hard coded Rackscale properties xg
         if self.beData.includeRackScaleOemProperties:
             resp["OemRackScaleSystem"]= { "ProcessorSockets": 2, "MemorySockets": 16, "DiscoveryState": "Basic" }
+
+        #add oemTarget support
+        resp["AddOemActions"]=True
 
         return(bmcMgrId,resp)
 

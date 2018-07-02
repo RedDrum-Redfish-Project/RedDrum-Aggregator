@@ -109,19 +109,14 @@ class  RdManagersBackend():
 
         # update the volatile status properties
         if ("Status" in resDb) and ("Status" in sysHwMonData):
-            for prop in resDb["Status"]:
-                if prop in sysHwMonData["Status"]:
-                    if "Status" not in resVolDb:
-                        resVolDb["Status"]={}
-                    resVolDb["Status"][prop]=sysHwMonData["Status"][prop]
+            resVolDb["Status"]=sysHwMonData["Status"]
 
         # update NonVolatile Properties
         if updateNonVols is True:
             for prop in nonVolatileProperties:
-                if (prop in resDb) and (prop in sysHwMonData):
-                    if resDb[prop] != sysHwMonData[prop]:
-                        resDb[prop]=sysHwMonData[prop]
-                        updatedResourceDb=True
+                if (prop in sysHwMonData):
+                    resDb[prop]=sysHwMonData[prop]
+                    updatedResourceDb=True
 
 
         # update the Dell Oem G5 nonVolatile properties
@@ -139,6 +134,35 @@ class  RdManagersBackend():
             if prop in sysHwMonData:
                 resDb[prop]=sysHwMonData[prop]
                 updatedResourceDb=True
+
+        # update Actions Reset AllowableValues
+        if "ActionsResetAllowableValues" in resDb:
+            if "Actions" in sysHwMonData and "#Manager.Reset" in sysHwMonData["Actions"]:
+                if "ResetType@Redfish.AllowableValues" in sysHwMonData["Actions"]["#Manager.Reset"]:
+                    resDb["ActionsResetAllowableValues"]=sysHwMonData["Actions"]["#Manager.Reset"]["ResetType@Redfish.AllowableValues"]
+                    updatedResourceDb=True
+                if "target" in sysHwMonData["Actions"]["#Manager.Reset"]:
+                    resDb["SysResetTargetUrl"]=sysHwMonData["Actions"]["#Manager.Reset"]["target"]
+                    updatedResourceDb=True
+
+        # update Oem Actions properties
+        if "AddOemActions" in resDb:
+            if "Actions" in sysHwMonData and "Oem" in sysHwMonData["Actions"]:
+                if "Actions" not in resDb:
+                    resDb["Actions"] = {}
+                    updatedResourceDb=True
+                if "Oem" not in resDb["Actions"]:
+                    resDb["Actions"]["Oem"] = {}
+                    updatedResourceDb=True
+                for oemaction in sysHwMonData["Actions"]["Oem"]:
+                    resDb["Actions"]["Oem"][oemaction] = sysHwMonData["Actions"]["Oem"][oemaction]
+                    if "target" in resDb["Actions"]["Oem"][oemaction]:
+                        bmcTarg=resDb["Actions"]["Oem"][oemaction]["target"]
+                        # the last segment of the target URI should be the Id of the target
+                        targPath,targId = os.path.split(bmcTarg)
+                        resDb["Actions"]["Oem"][oemaction]["targetPath"] = targPath
+                        resDb["Actions"]["Oem"][oemaction]["targetId"] = targId
+                        updatedResourceDb=True
 
         rc=0     # 0=ok
         return(rc,updatedResourceDb)
@@ -480,3 +504,48 @@ class  RdManagersBackend():
             # pass - not an aggregation manager here
             return(0)
     
+    # OEM Manager Action OemAction
+    def doOemManagerAction(self, mgrid, actionid, rdata, noCache=False ):
+        mgrDb=self.rdr.root.managers.managersDb
+        resDb=self.rdr.root.managers.managersDb[mgrid]
+
+        # if  not an aggregation manager, return 404.
+        if self.isManagerRackServerManager( mgrid) is not True:
+            # not an aggregation manager - return 404
+            return(0,400,"mgr is not a rackServer",{})
+
+        # now verify that we have a valid actionid
+        foundAction=False
+        for oemaction in resDb["Actions"]["Oem"]:
+            if "target" in resDb["Actions"]["Oem"][oemaction]:
+                bmcTarg = resDb["Actions"]["Oem"][oemaction]["target"]
+                targPath,targId = os.path.split(bmcTarg)
+                if actionid == targId:
+                    foundAction=True
+                    break
+
+        if foundAction is not True:
+            # didnt find this actionid
+            return(0,404,"didnt find actionid for this manager", {})
+
+        # send POST request to the rackserver  BMC to reset
+        self.rdr.logMsg("INFO","-------- BACKEND sending Manager OEM Action to bmc")
+        reqPostData=json.dumps(rdata)
+        targetUri = bmcTarg
+
+        # open Redfish transport to this bmc
+        if "Netloc" in resDb and "MgrUrl" in resDb:
+            bmcNetloc=resDb["Netloc"]
+            mgrUrl=resDb["MgrUrl"]
+        else:
+            return(9,400,"no netloc or mgrUrl",{})
+        rft = BmcRedfishTransport(rhost=bmcNetloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug,
+                                          credentialsPath=self.rdr.bmcCredentialsPath)
+        rc,r,j,d = rft.rfSendRecvRequest("POST", targetUri,reqData=reqPostData )
+        if rc is not 0:
+            self.rdr.logMsg("ERROR","..........error sending manager oem action to BMC: {}. rc: {}".format(mgrid,rc))
+            return(2, r.status_code, "error sending to bmc", None) # 
+
+        return(0, r.status_code, "", d)
+
+
