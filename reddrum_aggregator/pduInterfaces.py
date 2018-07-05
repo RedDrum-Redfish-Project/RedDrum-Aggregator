@@ -36,9 +36,12 @@ class RdAggrPDUlinuxInterfaces():
     #    2) stdout   -- used to send response data in form of a proper Json Struct.  send {} if no output
     #    3) stderr.  -- may be used for error and debug
     def reseatRackServer(self, chasId, bmcNetloc, pduSocketId, pduCommand):
+        isSimulator=self.rdr.backend.isSimulator
+        runEnv="Rack"
+        if isSimulator is True:
+            runEnv="Simulator"
         exitcode = 5
         response={}
-        print("AAAAAAAAAAAAAA")
 
         if chasId is None and pduSocketId is None:
             return(exitcode,response)
@@ -61,22 +64,20 @@ class RdAggrPDUlinuxInterfaces():
         arg3 = pduSocketId # string that represents a specific pdu socket id. 
         arg4 = pduCommand  # string that represents a specific command sent to the PDU script. 
         arg5 = self.rdr.backend.backendScriptsPath # path to dir with scripts
+        arg6 = runEnv
 
-        print("AAAAAAAAAAAAAA")
         #run the script
-        proc = Popen([scriptPath,arg1,arg2,arg3,arg4,arg5],stdout=PIPE,stderr=PIPE)
+        proc = Popen([scriptPath,arg1,arg2,arg3,arg4,arg5,arg6],stdout=PIPE,stderr=PIPE)
         out,err=proc.communicate()
         exitcode=proc.returncode
         print("STDERR: {}".format(err))
         print("STDOUT: {}".format(out))
 
-        print("BBBBBBBBBBBBBB")
         # handle error case running script
         if exitcode != 0:
             response={}
             return(exitcode,response)
 
-        print("BBBBBBBBBBBBBB")
         
         # else process the output
         #  getObmcProtocolInfo.sh outputs a json response structure with properties 
