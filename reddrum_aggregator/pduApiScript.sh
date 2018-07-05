@@ -5,9 +5,10 @@
 #
 # TO TEST: run:
 # include script  pduChasIdMap.sh  in same directory as pduApiScript.sh in order to do the chasId to pduSocket mapping
-#  bash pduApiScript.sh  svr1 127.0.0.1:3006   PDU_SOCKET_1   DEBUG  # to echo back args 
-#  bash pduApiScript.sh  svr1 127.0.0.1:3006   ""   DEBUG            # to map svr1 to pdu socket and do mapping
-#  bash pduApiScript.sh  svr1 127.0.0.1:3006   ""   RESEAT           # to map svr1 to pdu socket do RESEAT
+#                       <chasId> <bmcNetloc>      <socketId>    <pduCmd> <mapFilePath> <runEnv>
+#  bash pduApiScript.sh  svr1    127.0.0.1:3006   PDU_SOCKET_1   DEBUG   ""            ""  # debug and specify socketId
+#  bash pduApiScript.sh  svr1    127.0.0.1:3006   ""             DEBUG   ""                # debug and map socketId
+#  bash pduApiScript.sh  svr1    127.0.0.1:3006   ""             RESEAT  ""                # reseat and map socketId
 
 # assign args
 chasId=$1
@@ -15,32 +16,58 @@ bmcNetloc=$2
 pduSocketId=$3
 pduCommand=$4
 mapFilePath=$5
+runEnv=$6  # Simulator or Rack
+if [ "${runEnv}" == "Simulator" ]; then
+   userPrompt="login:"
+   passwdPrompt="assword:"
+   cmdPrompt="apc>"
+else
+   userPrompt="ser Name"
+   passwdPrompt="assword"
+   cmdPrompt="apc>"
+fi
 
 function reseat_command { 
   PDUCMD=$1
   username=$2
   password=$3
-  pdu_timeout=1
+  pdu_timeout=5
   expect <<- DONE
   set timeout $pdu_timeout
   spawn $PDUCMD 
+  # first: wait for userPrompt, then send username
   expect {
-      timeout         { send_user "timeout-during-login   " }
-      "*ser Name*"    { send "${username}\r"; exp_continue }
-      "*assword*"     { send "${password}\r"; exp_continue }
-      "*apc>*"        
+      timeout              { send_user "timeout-waiting for user login prompt" }
+      "*${userPrompt}*"    
   }
+  send "${username}\r"
 
-  send "olOff ${pduSocketId}\r"
+  # second: wait for passwdPrompt, then send password
   expect {
-      timeout         { send_user "timeout-after-olOff   " }
-      "*apc>*" 
+      timeout                { send_user "timeout-waiting for password prompt" }
+      "*${passwdPrompt}*"    
+  }
+  send "${password}\r"; 
+
+  # third: wait for cmdPrompt, then send olOff
+  expect {
+      timeout                { send_user "timeout-waiting for cmdPrompt after sending login" }
+      "*${cmdPrompt}*"        
+  }
+  send "olOff ${pduSocketId}\r"
+
+  # fourth: wait for cmdPrompt, then send ofOn
+  expect {
+      timeout         { send_user "timeout-waiting for cmdPrompt after sending olOff   " }
+      "*${cmdPrompt}*"        
   }
   sleep 2
   send "olOn ${pduSocketId}\r"
+
+  # fifth
   expect {
-      timeout         { send_user "timeout-after-olOn   " }
-      "*apc>*"
+      timeout         { send_user "timeout-waiting for cmdPrompt after sending olOn   " }
+      "*${cmdPrompt}*"        
   }
 DONE
 }
@@ -56,7 +83,7 @@ fi
 if [ "${mapFilePath}" == "" ]; then
     mapFilePath="."
 fi
-source ${mapFilePath}/pduChasIdMap.sh
+source ${mapFilePath}/pduChasIdMap.sh ${runEnv}
 pduNetloc=${XPDU_netloc}
 pduUsername=${XPDU_username}
 pduPassword=${XPDU_password}
@@ -73,11 +100,12 @@ fi
 
 # now process the different commands
 if [ "${pduCommand}" == "RESEAT" ]; then
-    echo "Run RESEAT cmd" >&2  #debug to stderr
+    echo "_Run RESEAT cmd" >&2  #debug to stderr
     # power off and on
     #PDUCMD="ssh ${pduNetloc}"
     PDUCMD="telnet ${pduNetloc}" 
     reseat_command "$PDUCMD" "${pduUsername}" "${pduPassword}" 1>&2
+    echo _DONE >&2
     # return empty dict to stdout and exit with exit code 0 if no error
     echo "{}"
     exit 0
