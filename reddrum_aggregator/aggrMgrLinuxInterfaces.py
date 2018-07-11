@@ -86,8 +86,7 @@ class RdAggrMgrLinuxInterfaces():
         #  }
         #  load to a json struct
         getObmcIpInfoOutputString = str(out, encoding='UTF-8')   # convert from bytes to utf8 string. 
-        print("EEEEEEEEEEE")
-        print(" ipinfo: {}".format(getObmcIpInfoOutputString))
+        #print(" ipinfo: {}".format(getObmcIpInfoOutputString))
         backendGetIpInfo=json.loads(getObmcIpInfoOutputString )
 
 

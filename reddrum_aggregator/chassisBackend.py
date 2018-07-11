@@ -105,15 +105,16 @@ class  RdChassisBackend():
             # else if this is a RackServer chassis (monolythic in the rack)
             elif "IsRackServerChassis" in resDb and resDb["IsRackServerChassis"] is True:
                 # get data about the rackServer chassis from the bmc
-                if "Netloc" in resDb and "ChasUrl" in resDb:
+                if "Netloc" in resDb and "ChasUrl" in resDb and "CredentialsId" in resDb:
                     bmcNetloc=resDb["Netloc"]
                     chasUrl=resDb["ChasUrl"]
+                    credentialsId = resDb["CredentialsId"]
                 else:
                     return(17,False)
     
                 # open Redfish transport to this bmc
                 rft = BmcRedfishTransport(rhost=bmcNetloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug,
-                                          credentialsPath=self.rdr.bmcCredentialsPath)
+                                          credentialsInfo=self.rdr.backend.credentialsDb[credentialsId] )
                 # send request to the rackserver  BMC
                 rc,r,j,sysHwMonData = rft.rfSendRecvRequest("GET", chasUrl )
                 if rc is not 0:
@@ -220,10 +221,11 @@ class  RdChassisBackend():
             sendResetToBmc = True
             netloc = resDb["Netloc"]
             chasUrl = resDb["ChasUrl"]
+            credentialsId = resDb["CredentialsId"]
 
             # open Redfish transport to this bmc
             rft = BmcRedfishTransport(rhost=netloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug,
-                                      credentialsPath=self.rdr.bmcCredentialsPath)
+                                      credentialsInfo=self.rdr.backend.credentialsDb[credentialsId] )
         else:
             rc=9
 
@@ -266,15 +268,13 @@ class  RdChassisBackend():
 
 
     def doChassisOemReseat(self, chassisid ):
+        resDb=self.rdr.root.chassis.chassisDb[chassisid]
         self.rdr.logMsg("DEBUG","--------BACKEND POST for Chassis OemReseat")
         reseatViaPdu=False
-        resDb=self.rdr.root.chassis.chassisDb[chassisid]
 
         # the front-end has already validated that the patchData and chassisid is ok
         if "IsTopLevelChassisInAggrRack" in resDb and resDb["IsTopLevelChassisInAggrRack"] is True:
             # xgTODO 
-            netloc = None
-            chasUrl = None
             reseatViaPdu = False # for now
             rc=0
     
@@ -282,8 +282,6 @@ class  RdChassisBackend():
         elif "IsMgtSwitchChassisInAggrRack" in resDb and resDb["IsMgtSwitchChassisInAggrRack"] is True:
             # patch data in MgtSwitch
             # xgTODO
-            netloc = None
-            chasUrl = None
             reseatViaPdu = False # for now
             rc=0
     
@@ -291,8 +289,6 @@ class  RdChassisBackend():
         elif "IsAggrHostServerChassisInAggrRack" in resDb and resDb["IsAggrHostServerChassisInAggrRack"] is True:
             # get data from the Aggregator Host server's local bmc
             # xgTODO
-            netloc = None
-            chasUrl = None
             reseatViaPdu = False # for now
             rc=0
     
@@ -300,8 +296,6 @@ class  RdChassisBackend():
         elif "IsRackServerChassis" in resDb and resDb["IsRackServerChassis"] is True:
             # extract the netloc and chassis entry URL from the chassisDb saved during discovery
             reseatViaPdu=True
-            netloc = resDb["Netloc"]
-            chasUrl = resDb["ChasUrl"]
 
         else:
             rc=9
@@ -311,13 +305,7 @@ class  RdChassisBackend():
             # send Post request to the rackserver  BMC to reseat
             self.rdr.logMsg("INFO","-------- BACKEND sending msg to smart PDU to Reseat chas")
             pdu = RdAggrPDUlinuxInterfaces(self.rdr)
-            if "Netloc" in resDb:
-                bmcNetloc = resDb["Netloc"]
-            else:
-                return(7)
-            pduSocketId = None   # let the API lookup the socket based on chassisid
-            pduCommand = "RESEAT"
-            rc,resp = pdu.reseatRackServer( chassisid, bmcNetloc, pduSocketId, pduCommand)
+            rc,resp = pdu.reseatRackServer( chassisid )
         return(rc)
 
 
@@ -366,10 +354,11 @@ class  RdChassisBackend():
             sendPatchToBmc=True
             netloc = resDb["Netloc"]
             chasUrl = resDb["ChasUrl"]
+            credentialsId = resDb["CredentialsId"]
 
             # open Redfish transport to this bmc
             rft = BmcRedfishTransport(rhost=netloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug,
-                                      credentialsPath=self.rdr.bmcCredentialsPath)
+                                      credentialsInfo=self.rdr.backend.credentialsDb[credentialsId] )
         else:
             rc=9
 
@@ -402,10 +391,11 @@ class  RdChassisBackend():
             netloc = resDb["Netloc"]
             chasUrl = resDb["ChasUrl"]
             powerUrl=resDb["PowerUrl"]
+            credentialsId = resDb["CredentialsId"]
 
             # open Redfish transport to this bmc
             rft = BmcRedfishTransport(rhost=netloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug,
-                                      credentialsPath=self.rdr.bmcCredentialsPath)
+                                      credentialsInfo=self.rdr.backend.credentialsDb[credentialsId] )
             rc,r,j,dsys = rft.rfSendRecvRequest("PATCH", powerUrl,reqData=reqPatchData )
         return(rc)
         
@@ -668,15 +658,16 @@ class  RdChassisBackend():
             thisChasDb=self.rdr.root.chassis.chassisDb[chassisid]
         else:
             return(0,False)
-        if "Netloc" in thisChasDb and "ChasUrl" in thisChasDb:
+        if "Netloc" in thisChasDb and "ChasUrl" in thisChasDb and "CredentialsId" in thisChasDb:
             bmcNetloc=thisChasDb["Netloc"]
             chasUrl=thisChasDb["ChasUrl"]
+            credentialsId = thisChasDb["CredentialsId"]
         else:
             return(17,False)
 
         # open Redfish transport to this bmc
         rft = BmcRedfishTransport(rhost=bmcNetloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug,
-                                      credentialsPath=self.rdr.bmcCredentialsPath)
+                                      credentialsInfo=self.rdr.backend.credentialsDb[credentialsId] )
         # if we have never stored the thermal or Power Url, read the chassis now and store them
         if "ThermalUrl" in thisChasDb:
             thermalUrl=thisChasDb["ThermalUrl"]
@@ -740,6 +731,8 @@ class  RdChassisBackend():
                     sensorId=sensor["MemberId"]
                     if any ( i in sensorId for i in "#"):
                         sensorId = sensorId.replace("#","-")
+                    if any ( i in sensorId for i in "|"):
+                        sensorId = sensorId.replace("|","-")
                     self.sysHwMonData["Id"][sensorId] = {}
                     self.sysHwMonData["Id"][sensorId]["Volatile"]=["Reading"]
                     self.sysHwMonData["Id"][sensorId]["AddRelatedItems"]=["Chassis","System"]
@@ -752,6 +745,8 @@ class  RdChassisBackend():
                     redGrpId=entry["MemberId"]
                     if any ( i in redGrpId for i in "#"):
                         redGrpId = redGrpId.replace("#","-")
+                    if any ( i in sensorId for i in "|"):
+                        sensorId = sensorId.replace("|","-")
                     self.sysHwMonData["RedundancyGroup"][redGrpId] = {}
                     for prop in entry:
                         self.sysHwMonData["RedundancyGroup"][redGrpId][prop]=entry[prop]
@@ -791,15 +786,16 @@ class  RdChassisBackend():
             thisChasDb=self.rdr.root.chassis.chassisDb[chassisid]
         else:
             return(0,False)
-        if "Netloc" in thisChasDb and "ChasUrl" in thisChasDb:
+        if "Netloc" in thisChasDb and "ChasUrl" in thisChasDb and "CredentialsId" in thisChasDb:
             bmcNetloc=thisChasDb["Netloc"]
             chasUrl=thisChasDb["ChasUrl"]
+            credentialsId = thisChasDb["CredentialsId"]
         else:
             return(17,False)
 
         # open Redfish transport to this bmc
         rft = BmcRedfishTransport(rhost=bmcNetloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug,
-                                      credentialsPath=self.rdr.bmcCredentialsPath)
+                                      credentialsInfo=self.rdr.backend.credentialsDb[credentialsId] )
         # if we have never stored the thermal or Power Url, read the chassis now and store them
         if "PowerUrl" in thisChasDb:
             powerUrl=thisChasDb["PowerUrl"]
@@ -838,6 +834,8 @@ class  RdChassisBackend():
                     sensorId=sensor["MemberId"]
                     if any ( i in sensorId for i in "#"):
                         sensorId = sensorId.replace("#","-")
+                    if any ( i in sensorId for i in "|"):
+                        sensorId = sensorId.replace("|","-")
                     self.sysHwMonData["Id"][sensorId] = {}
                     self.sysHwMonData["Id"][sensorId]["Volatile"]=["ReadingVolts"]
                     self.sysHwMonData["Id"][sensorId]["AddRelatedItems"]=["Chassis","System"]
@@ -863,6 +861,8 @@ class  RdChassisBackend():
                     sensorId=sensor["MemberId"]
                     if any ( i in sensorId for i in "#"):
                         sensorId = sensorId.replace("#","-")
+                    if any ( i in sensorId for i in "|"):
+                        sensorId = sensorId.replace("|","-")
                     self.sysHwMonData["Id"][sensorId] = {}
                     self.sysHwMonData["Id"][sensorId]["Volatile"]=["LineInputVoltage","LastPowerOutputWatts"]
                     self.sysHwMonData["Id"][sensorId]["AddRelatedItems"]=["Chassis","System"]
@@ -908,7 +908,6 @@ class  RdChassisBackend():
                     for prop in self.sysHwMonData["Id"][sensorId]["PowerLimit"]:
                         self.sysHwMonData["Id"][sensorId][prop]= self.sysHwMonData["Id"][sensorId]["PowerLimit"][prop]
                         self.sysHwMonData["Id"][sensorId]["Patchable"].append(prop)
-                #print("EEEE: {}".format(sensorId))
                 powerCntlId=powerCntlId+1
                         
 

@@ -1,0 +1,23 @@
+
+The following files may need to be edited for specific configs:
+
+1. aggregatorConfig.py -- top level aggregator config properties:
+    == discoverRackServersFrom=discovery_hwTestRack2.json # or file with similar contents--the discovered servers
+    == redfishAggregatorIsInsideSwitch = True             # for aggregator running inside Cumulus
+    == isRackSim=False                                    # for real HW
+    == includeRackScaleOemProperties=True                 # for RSD support
+    == pduReseatScript="python2 pduReseatScript-apc.py"   # for apc PDU on real rack
+    == bmcCredentialsFile="bmcCredentials-idrac.json"     # for idrac
+
+    -- various Rack Enclosure settings eg RackModelNum
+    -- various Management Switch settings eg ModelNum
+    -- various Aggregator "Manager" settings eg Id, Model...
+
+
+
+2. backendRoot.py -- ONLY if we need to modify paths to RedDrum.conf, or script files used by the backend
+
+3. pduReseatScript-apc.py -- ONLY if additional customization of the PDU interface is required
+
+4. bmcCredentials-idrac.json -- ONLY if wanting to use idrac credentials other than defaults rood:calvin
+

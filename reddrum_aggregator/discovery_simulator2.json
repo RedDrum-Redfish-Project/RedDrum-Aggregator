@@ -1,8 +1,7 @@
 {
-"Environment": "Simulator",
 "RackServers": [
-  { "Id": "svr1", "IPv4Address": "127.0.0.1:8006" },
-  { "Id": "svr2", "IPv4Address": "127.0.0.1:8007" }
+  { "Id": "svr1", "IPv4Address": "127.0.0.1:8006", "PduSocketId": "SOCKET1",  "CredentialsId": "SIM0" },
+  { "Id": "svr2", "IPv4Address": "127.0.0.1:8007", "PduSocketId": "SOCKET2",  "CredentialsId": "SIM1" }
   ]
 }  
 
