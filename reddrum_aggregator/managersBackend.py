@@ -72,15 +72,16 @@ class  RdManagersBackend():
 
         # if here, assume the manager is a bmc in a RackServer
         # get data from BMC
-        if "Netloc" in resDb and "MgrUrl" in resDb:
+        if "Netloc" in resDb and "MgrUrl" in resDb and "CredentialsId" in resDb:
             bmcNetloc=resDb["Netloc"]
             mgrUrl=resDb["MgrUrl"]
+            credentialsId = resDb["CredentialsId"]
         else:
             return(17,False)
 
         # open Redfish transport to this bmc
         rft = BmcRedfishTransport(rhost=bmcNetloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug,
-                                          credentialsPath=self.rdr.bmcCredentialsPath)
+                                          credentialsInfo=self.rdr.backend.credentialsDb[credentialsId] )
         # send request to the rackserver  BMC
         rc,r,j,sysHwMonData = rft.rfSendRecvRequest("GET", mgrUrl )
         if rc is not 0:
@@ -223,10 +224,11 @@ class  RdManagersBackend():
         # extract the netloc and system entry URL from the systemsDb saved during discovery
         netloc = resDb["Netloc"]
         mgrUrl = resDb["MgrUrl"]
+        credentialsId = resDb["CredentialsId"]
 
         # open Redfish transport to this bmc
         rft = BmcRedfishTransport(rhost=netloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug,
-                                      credentialsPath=self.rdr.bmcCredentialsPath)
+                                      credentialsInfo=self.rdr.backend.credentialsDb[credentialsId] )
         # check if we already have a system reset URI collected
         if "MgrResetTargetUrl" in resDb:
             mgrResetTargetUrl = resDb["MgrResetTargetUrl"]
@@ -286,10 +288,11 @@ class  RdManagersBackend():
         # extract the netloc and manager entry URL from the managersDb saved during discovery
         netloc = resDb["Netloc"]
         mgrUrl = resDb["MgrUrl"]
+        credentialsId = resDb["CredentialsId"]
 
         # open Redfish transport to this bmc
         rft = BmcRedfishTransport(rhost=netloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug,
-                                      credentialsPath=self.rdr.bmcCredentialsPath)
+                                      credentialsInfo=self.rdr.backend.credentialsDb[credentialsId] )
 
         # send PATCH request to the rackserver  BMC 
         self.rdr.logMsg("INFO","-------- BACKEND sending Patch to bmc")
@@ -328,14 +331,15 @@ class  RdManagersBackend():
         elif self.isManagerRackServerManager( mgrid) is True:
             # this is a rackServer BMC manager.
             # get data from BMC
-            if "Netloc" in resDb and "MgrUrl" in resDb:
+            if "Netloc" in resDb and "MgrUrl" in resDb and "CredentialsId" in resDb:
                 bmcNetloc=resDb["Netloc"]
                 mgrUrl=resDb["MgrUrl"]
+                credentialsId = resDb["CredentialsId"]
             else:
                 return(17,False)
             # open Redfish transport to this bmc
             rft = BmcRedfishTransport(rhost=bmcNetloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug,
-                                          credentialsPath=self.rdr.bmcCredentialsPath)
+                                          credentialsInfo=self.rdr.backend.credentialsDb[credentialsId] )
 
             # check if we already have the URI for the manager networkProtocols
             if "NetworkProtocolUri" in resDb:
@@ -433,14 +437,15 @@ class  RdManagersBackend():
                 "IPv6AddressPolicyTable","IPv6DefaultGateway","NameServers", "VLANs"]
 
             # get data from BMC
-            if "Netloc" in resDb and "MgrUrl" in resDb:
+            if "Netloc" in resDb and "MgrUrl" in resDb and "CredentialsId" in resDb:
                 bmcNetloc=resDb["Netloc"]
                 mgrUrl=resDb["MgrUrl"]
+                credentialsId = resDb["CredentialsId"]
             else:
                 return(17,False)
             # open Redfish transport to this bmc
             rft = BmcRedfishTransport(rhost=bmcNetloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug,
-                                          credentialsPath=self.rdr.bmcCredentialsPath)
+                                          credentialsInfo=self.rdr.backend.credentialsDb[credentialsId] )
 
             # check if we already have the URI for the Managers EthernetInterfaces collection 
             if "EthernetInterfacesUri" in resDb:
@@ -534,13 +539,14 @@ class  RdManagersBackend():
         targetUri = bmcTarg
 
         # open Redfish transport to this bmc
-        if "Netloc" in resDb and "MgrUrl" in resDb:
+        if "Netloc" in resDb and "MgrUrl" in resDb and "CredentialsId" in resDb:
             bmcNetloc=resDb["Netloc"]
             mgrUrl=resDb["MgrUrl"]
+            credentialsId = resDb["CredentialsId"]
         else:
             return(9,400,"no netloc or mgrUrl",{})
         rft = BmcRedfishTransport(rhost=bmcNetloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug,
-                                          credentialsPath=self.rdr.bmcCredentialsPath)
+                                          credentialsInfo=self.rdr.backend.credentialsDb[credentialsId] )
         rc,r,j,d = rft.rfSendRecvRequest("POST", targetUri,reqData=reqPostData )
         if rc is not 0:
             self.rdr.logMsg("ERROR","..........error sending manager oem action to BMC: {}. rc: {}".format(mgrid,rc))

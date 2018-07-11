@@ -176,7 +176,7 @@ class RfaResourceAdds():
 
 
     # ADD RackServer Chassis
-    def addRfaRackServerChassis(self, svrId, svrNetloc, svrMac):
+    def addRfaRackServerChassis(self, svrId, svrNetloc, svrPduSockId, svrCredsId ):
         rackId = self.rfaCfg.rackChasId
         aggMgrId = self.rfaCfg.aggregatorMgrId
         bmcMgrId=svrId
@@ -184,6 +184,8 @@ class RfaResourceAdds():
         resp=dict()
         resp["IsRackServerChassis"]=True
         resp["Netloc"]=svrNetloc
+        resp["CredentialsId"]=svrCredsId
+        resp["PduSocketId"]=svrPduSockId
         resp["ChassisType"]="RackMount"  # xg6 or is it mono
         resp["Name"]="Rack Server"
         resp["Description"]="Rack Server Chassis Enclosure"
@@ -208,7 +210,7 @@ class RfaResourceAdds():
 
 
     # ADD RackServer System
-    def addRfaRackServerSystem(self, svrId, svrNetloc, svrMac ):
+    def addRfaRackServerSystem(self, svrId, svrNetloc, svrCredsId  ):
         rackId = self.rfaCfg.rackChasId
         chasId = svrId
         aggMgrId = self.rfaCfg.aggregatorMgrId
@@ -216,6 +218,7 @@ class RfaResourceAdds():
         resp=dict()
         resp["IsRackServerSystem"]=True
         resp["Netloc"]=svrNetloc
+        resp["CredentialsId"]=svrCredsId
         resp["Name"]="Rack Computer System"
         resp["Description"]="Rack Server Computer System Node"
         resp["SystemType"]="Physical"
@@ -247,7 +250,7 @@ class RfaResourceAdds():
         resp["MgtNetworkNetloc"]=svrNetloc
         resp["OemDellG5MgtNetworkInfo"]={}
         resp["OemDellG5MgtNetworkInfo"]["MgtNetworkIP"]=svrNetloc
-        resp["OemDellG5MgtNetworkInfo"]["MgtNetworkMAC"]=svrMac
+        resp["OemDellG5MgtNetworkInfo"]["MgtNetworkMAC"]=None
         resp["OemDellG5MgtNetworkInfo"]["MgtNetworkEnableStatus"]="ENABLED"
 
         # add Dell oem data
@@ -260,7 +263,7 @@ class RfaResourceAdds():
         return(svrId,resp)
 
     # ADD RackServer Manager
-    def addRfaRackServerManager(self, svrId, svrNetloc, svrMac ):
+    def addRfaRackServerManager(self, svrId, svrNetloc, svrCredsId  ):
         rackId = self.rfaCfg.rackChasId
         chasId = svrId
         aggMgrId = self.rfaCfg.aggregatorMgrId
@@ -268,6 +271,7 @@ class RfaResourceAdds():
         resp=dict()
         resp["IsRackServerManager"]=True
         resp["Netloc"]=svrNetloc
+        resp["CredentialsId"]=svrCredsId
         resp["Name"]="Rack Computer System"
         resp["Description"]="Rack Server Computer System Node"
         resp["SystemType"]="Physical"
@@ -341,7 +345,7 @@ class RfaResourceAdds():
         resp["MgtNetworkNetloc"]=svrNetloc
         resp["OemDellG5MgtNetworkInfo"]={}
         resp["OemDellG5MgtNetworkInfo"]["MgtNetworkIP"]=svrNetloc
-        resp["OemDellG5MgtNetworkInfo"]["MgtNetworkMAC"]=svrMac
+        resp["OemDellG5MgtNetworkInfo"]["MgtNetworkMAC"]=None
         resp["OemDellG5MgtNetworkInfo"]["MgtNetworkEnableStatus"]="ENABLED"
 
         # the following are defaults and on first call to the system the backend may update these

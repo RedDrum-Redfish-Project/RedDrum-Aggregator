@@ -50,10 +50,11 @@ class  RdSystemsBackend():
         # extract the netloc and system entry URL from the systemsDb saved during discovery
         netloc = resDb["Netloc"]
         sysUrl = resDb["SysUrl"]
+        credentialsId = resDb["CredentialsId"]
 
         # open Redfish transport to this bmc
         rft = BmcRedfishTransport(rhost=netloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug,
-                                      credentialsPath=self.rdr.bmcCredentialsPath)
+                                      credentialsInfo=self.rdr.backend.credentialsDb[credentialsId] )
         # send request to the rackserver  BMC
         rc,r,j,dsys = rft.rfSendRecvRequest("GET", sysUrl )
         if rc is not 0:
@@ -87,12 +88,6 @@ class  RdSystemsBackend():
                     resDb["BootSourcePatchableProperties"].append(prop)
             if "BootSourceOverrideTarget@Redfish.AllowableValues" in dsys["Boot"]:
                 resDb["BootSourceAllowableValues"] = dsys["Boot"]["BootSourceOverrideTarget@Redfish.AllowableValues"]
-        #xg99
-        #print("YYYYYYYYYYYYYYYYYYYYYYYYYYY")
-        #print(" BootSourceVolatileProps:  {}".format(resDb["BootSourceAllowableValues"]))
-        #print(" BootSourcePatchableProps: {}".format(resDb["BootSourcePatchableProperties"]))
-        #print(" BootSourceOverrideTarget: {}".format(resDb["BootSourceAllowableValues"]))
-
 
         # update the volatile status properties
         if ("Status" in resDb) and ("Status" in dsys):
@@ -109,7 +104,6 @@ class  RdSystemsBackend():
         if (updateNonVols is True) and ("MemorySummary" in resDb) and ("MemorySummary" in dsys):
             for prop in dsys["MemorySummary"]:
                 resDb["MemorySummary"][prop]=dsys["MemorySummary"][prop]
-                #print (" The property is " + str(resDb["MemorySummary"][prop]))
                 updatedResourceDb=True
 
         # update NonVolatile ProcessorSummary Properties
@@ -150,10 +144,11 @@ class  RdSystemsBackend():
         # extract the netloc and system entry URL from the systemsDb saved during discovery
         netloc = resDb["Netloc"]
         sysUrl = resDb["SysUrl"]
+        credentialsId = resDb["CredentialsId"]
 
         # open Redfish transport to this bmc
         rft = BmcRedfishTransport(rhost=netloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug,
-                                      credentialsPath=self.rdr.bmcCredentialsPath)
+                                      credentialsInfo=self.rdr.backend.credentialsDb[credentialsId] )
         # check if we already have a system reset URI collected
         if "SysResetTargetUrl" in resDb:
             sysResetTargetUrl = resDb["SysResetTargetUrl"]
@@ -206,10 +201,11 @@ class  RdSystemsBackend():
         # extract the netloc and system entry URL from the systemsDb saved during discovery
         netloc = resDb["Netloc"]
         sysUrl = resDb["SysUrl"]
+        credentialsId = resDb["CredentialsId"]
 
         # open Redfish transport to this bmc
         rft = BmcRedfishTransport(rhost=netloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug,
-                                      credentialsPath=self.rdr.bmcCredentialsPath)
+                                      credentialsInfo=self.rdr.backend.credentialsDb[credentialsId] )
 
         # send PATCH request to the rackserver  BMC to reset
         self.rdr.logMsg("INFO","-------- BACKEND sending Patch to bmc")
@@ -260,6 +256,7 @@ class  RdSystemsBackend():
         sysDbEntry = self.rdr.root.systems.systemsDb[sysid]
         sysNetloc = sysDbEntry["Netloc"]
         sysUrl = sysDbEntry["SysUrl"]
+        credentialsId = sysDbEntry["CredentialsId"]
         processorsUri=None
         maxCollectionEntries = 8
         processorInfoProperties=["Name","Socket","ProcessorType","Manufacturer","Model","MaxSpeedMHz","TotalCores",
@@ -268,7 +265,7 @@ class  RdSystemsBackend():
 
         # open Redfish transport to this bmc
         nodeRft = BmcRedfishTransport(rhost=sysNetloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug,
-                                      credentialsPath=self.rdr.bmcCredentialsPath)
+                                      credentialsInfo=self.rdr.backend.credentialsDb[credentialsId] )
 
         # check if we already have the URI for the processors collection 
         if "ProcessorsUri" in sysDbEntry:
@@ -383,6 +380,7 @@ class  RdSystemsBackend():
         sysDbEntry=self.rdr.root.systems.systemsDb[sysid]
         sysNetloc=sysDbEntry["Netloc"]
         sysUrl = sysDbEntry["SysUrl"]
+        credentialsId = sysDbEntry["CredentialsId"]
         maxDimms=32
         memoryUri=None
 
@@ -397,10 +395,9 @@ class  RdSystemsBackend():
                               "IsRankSpareEnabled" ]
         # open Redfish transport to this bmc
         nodeRft = BmcRedfishTransport(rhost=sysNetloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug,
-                                      credentialsPath=self.rdr.bmcCredentialsPath)
+                                      credentialsInfo=self.rdr.backend.credentialsDb[credentialsId] )
 
         if tryRedfishMemoryApis is True:
-            #print("EEEEEEEEEEEEEEEEEE sysurl: {}".format(sysUrl))
             # check if we already have the URI for the processors collection 
             if "MemoryUri" in sysDbEntry:
                 memoryUri=sysDbEntry["MemoryUri"]
@@ -419,7 +416,6 @@ class  RdSystemsBackend():
                     memoryUri=dsys["Memory"]["@odata.id"]
                     sysDbEntry["MemoryUri"]=memoryUri
                     redfishMemoryApiFound=True
-                    #print("EEEE: memUri: {} ",format(memoryUri))
                 else:
                     self.rdr.logMsg("INFO","..........No Memory property in SystemEntry-{}".format(rc))
                     #return(17) # note: returning non-zero rc, will cause a 500 error from the frontend.
@@ -553,6 +549,7 @@ class  RdSystemsBackend():
         sysDbEntry=self.rdr.root.systems.systemsDb[sysid]
         sysNetloc=sysDbEntry["Netloc"]
         sysUrl = sysDbEntry["SysUrl"]
+        credentialsId = sysDbEntry["CredentialsId"]
         simpleStorageUri=None
         maxCollectionEntries = 8
 
@@ -562,7 +559,7 @@ class  RdSystemsBackend():
 
         # open Redfish transport to this bmc
         nodeRft = BmcRedfishTransport(rhost=sysNetloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug,
-                                      credentialsPath=self.rdr.bmcCredentialsPath)
+                                      credentialsInfo=self.rdr.backend.credentialsDb[credentialsId] )
         # check if we already have the URI for the processors collection 
         if "SimpleStorageUri" in sysDbEntry:
             simpleStorageUri=sysDbEntry["SimpleStorageUri"]
@@ -668,6 +665,7 @@ class  RdSystemsBackend():
         sysDbEntry=self.rdr.root.systems.systemsDb[sysid]
         sysNetloc=sysDbEntry["Netloc"]
         sysUrl = sysDbEntry["SysUrl"]
+        credentialsId = sysDbEntry["CredentialsId"]
         ethernetInterfacesUri=None
         maxCollectionEntries = 8
 
@@ -681,7 +679,7 @@ class  RdSystemsBackend():
 
         # open Redfish transport to this bmc
         nodeRft = BmcRedfishTransport(rhost=sysNetloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug,
-                                      credentialsPath=self.rdr.bmcCredentialsPath)
+                                      credentialsInfo=self.rdr.backend.credentialsDb[credentialsId] )
 
         # check if we already have the URI for the processors collection 
         if "ethernetInterfacesUri" in sysDbEntry:

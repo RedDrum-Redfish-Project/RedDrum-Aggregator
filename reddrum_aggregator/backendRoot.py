@@ -26,7 +26,8 @@ class RdBackendRoot():
         self.rdBeIdConstructionRule="Aggregator"
         self.includeRackScaleOemProperties=True
         self.isSimulator=False
-
+        self.pduApiScript=None
+        self.credentialsDb={ "BMC0": {"User": "root", "Password": "redfish", "BmcType": "Generic"  } }
 
         # create backend sub-classes
         self.createSubObjects(rdr)
@@ -75,9 +76,10 @@ class RdBackendRoot():
         self.backendDiscoveryFilePaths = self.backendScriptsPath 
 
         # set the path to the bmc credentials file
-        #   - note that the bmcRedfishTransport will try to open the credential file at this location if not none
-        #   - if the file does not exist, it will use the default passwd in the transport (root calvin)
-        rdr.bmcCredentialsPath=os.path.join("/etc","opt","dell","redfish-aggregator","Credentials","bmcuser",".passwd")
+        #   - note that discovery will try to load a credentials dict from file: bmcCredentials.json at this path
+        #   - if the file does not exist, no credentials will be loaded
+        #rdr.bmcCredentialsPath=os.path.join("/etc","opt","dell","redfish-aggregator","Credentials","bmcuser",".passwd")
+        rdr.bmcCredentialsPath = os.path.dirname( inspect.getfile(RdBackendRoot))
 
         # note that syslog logging is enabled on RedDrum-Aggregator by default unless -L (isLocal) option was specified
         # turn-on console messages "also" however

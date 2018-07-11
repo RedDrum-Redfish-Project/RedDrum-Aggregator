@@ -26,14 +26,21 @@ class RfaConfig():
         self.useTestLldpOuptutFile=False
     
         # - isRackSim= OneOf( True,False)
-        #     if true, the Redfish transport used to connect to iDracs assumes settings required for the racksim
-        #     this is only used if discoverRackServersFrom is set equal to a file that lists simulated iDracs
-        #        which are one specific ports
+        #     if true, the Redfish transport makes accomadations for everything to be simulated
         self.isRackSim=True
         #self.isRackSim=False
     
         # GENERAL API SETTINGS
         self.includeRackScaleOemProperties=True
+
+        # PDU Reseat Script -- this scriptname for the top-level bash wrapper script used to reseat a server chassis
+        #   one arg is passed:  SocketId
+        self.pduReseatScript="python2 pduReseatScript-sim.py"
+        #self.pduReseatScript="python2 pduReseatScript-apc.py"
+
+        # CREDENTIALS File -- contains credential IDs
+        self.bmcCredentialsFile="bmcCredentials-sim.json"
+        #self.credentialsFile="bmcCredentials-idrac.json"
     
         # RACK ENCLOSURE RESOURCE SETTINGS -- should move somewhere else if we keep them
         self.rackModelNumber=""
@@ -50,8 +57,8 @@ class RfaConfig():
         self.mgtSwitchAssetTag=None
     
         # REDFISH AGGREGATION MANAGER 
-        self.aggregatorMgrId="RedDrum-RedfishAggregator"
-        self.aggregatorHostServerChasId="RedDrum-RedfishAggregator-HostServer"  # chasId of separate server running aggregator
+        self.aggregatorMgrId="RedDrum-Aggregator"
+        self.aggregatorHostServerChasId="RedDrum-Aggregator-Host"  # chasId of separate server running aggregator
         self.aggregatorHostServerModel="R740"
         self.aggregatorHostServerManufacturer="Dell"
         self.aggregatorHostServerSerialNumber=None

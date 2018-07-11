@@ -36,6 +36,40 @@ class RdStartupResourceDiscovery():
     # --------------------------------------------------
 
     def discoverResourcesPhase1(self, rdr):
+        #PHASE-0a: get some configs from appregatorConfig.py
+        rdr.logMsg("INFO","....discovery: running phase-0. Getting Aggregator config from aggregatorConfig.py")
+        rdr.logMsg("INFO","....discovery: running phase-0a. Getting isRackSim from aggregatorConfig.py")
+        isSimulator=self.rfaCfg.isRackSim
+        rdr.backend.isSimulator=isSimulator
+        if isSimulator is not True and isSimulator is not False:
+            rdr.logMsg("ERROR","....discovery: phase-0. invalid aggregator.Config parameter: isRackSim -- not True or False  ")
+            rdr.logMsg("CRITICAL","...... aborting discovery and startup")
+            return(11)
+
+        #PHASE-0b: get pduReseatScript
+        rdr.logMsg("INFO","....discovery: running phase-0b. Getting pduReseatScript from aggregatorConfig.py")
+        pduReseatScript=self.rfaCfg.pduReseatScript
+        rdr.backend.pduReseatWrapper=os.path.join( self.rdr.backend.backendDiscoveryFilePaths, "pduReseatWrapper.sh" )
+        rdr.backend.pduReseatScript=pduReseatScript=pduReseatScript
+        #if not os.path.isfile(rdr.backend.pduApiScript):
+        #    rdr.logMsg("ERROR","....discovery: phase-0b. Cant find pduReseatScript: {}".format(pduReseatScript))
+        #    rdr.logMsg("CRITICAL","...... aborting discovery and startup")
+
+        #PHASE-0c: get credentialsIdFile
+        rdr.logMsg("INFO","....discovery: running phase-0c. Getting bmcCredentialsFile from aggregatorConfig.py")
+        bmcCredentialsFile=self.rfaCfg.bmcCredentialsFile
+        bmcCredentialsFilePath=os.path.join( self.rdr.backend.backendDiscoveryFilePaths, bmcCredentialsFile)
+        if not os.path.isfile(bmcCredentialsFilePath):
+            rdr.logMsg("ERROR","....discovery: phase-0c. Cant find bmcCredentialsFile: {}".format(bmcCredentialsFile))
+            rdr.logMsg("CRITICAL","...... aborting discovery and startup")
+            return(13)
+        else:
+            self.rdr.backend.credentialsDb = json.loads( open( bmcCredentialsFilePath, "r").read() )
+        
+
+        #PHASE-1:  discover the rack level Resources
+        rdr.logMsg("INFO","....discovery: running phase-1.  adding Rack-Level Resources")
+
         #PHASE-1a:  discover the rack level enclosure
         rdr.logMsg("INFO","....discovery: running phase-1a.  adding Rack-Level Chassis Enclosure Resource")
         chasId, chasRackEntry = self.rfaResAdds.addRfaRackChassis()
@@ -102,33 +136,40 @@ class RdStartupResourceDiscovery():
         #PHASE-1f:  add rack servers to Systems, Chassis, and Managers DBs
         rdr.logMsg("INFO","....discovery: running phase-1f.  getting LLDP database of attached servers")
         if rackServersDiscoveryDict is not None and "RackServers" in rackServersDiscoveryDict:
-            environ=None
-            isSimulator=False
-            if "Environment" in rackServersDiscoveryDict:
-                environ = rackServersDiscoveryDict["Environment"]
-                if environ == "Simulator":
-                    isSimulator=True
-                    rdr.backend.isSimulator=True
+            requiredDiscoveryProps = ["Id","IPv4Address","PduSocketId", "CredentialsId" ]
             for svr in rackServersDiscoveryDict["RackServers"]:
-                svrNetloc=None
-                svrMac=None
                 svrId=None
-                #extract the Id and create a netloc for each server
-                if "Id" in svr and "IPv4Address" in svr:
-                    svrId = svr["Id"]
-                    svrIpv4Addr = svr["IPv4Address"]
-                    svrNetloc=svrIpv4Addr
-                    if "MACAddress" in svr:
-                        svrMac = svr["MACAddress"]
+                svrNetloc=None
+                svrPduSockId=None
+                svrCredsId=None
 
-                if svrId is None or svrNetloc is None:
+                badEntry=False
+                for prop in requiredDiscoveryProps:
+                    if prop not in svr:
+                        badEntry=True
+                        break
+                if badEntry is True:
                     rdr.logMsg("ERROR",
-                    "........error getting server Id and netloc for rackServersDiscoveryDict")
+                    "........error getting discovery properties (svrId, netloc, pduSocket, CredentialsId from rackServersDiscoveryDict")
+                    rdr.logMsg("ERROR","............skipping server and continuing...")
+                    continue  # next server 
+
+                # if here, we know that all of the required properties are in the entry
+                # extract the Id and create a netloc for each server
+                svrId = svr["Id"]
+                svrNetloc = svr["IPv4Address"]
+                svrPduSockId = svr["PduSocketId"]
+                svrCredsId = svr["CredentialsId"]
+
+                # verify that the credentialsId is valid
+                if svrCredsId not in self.rdr.backend.credentialsDb:
+                    rdr.logMsg("ERROR",
+                    "........The credentiasId in the discovery file is not a valid credentialsId in the credentials file")
                     rdr.logMsg("ERROR","............skipping server and continuing...")
                     continue  # next server 
 
                 # create a Chassis Entry for the rack server
-                chasId, svrChasEntry = self.rfaResAdds.addRfaRackServerChassis(svrId, svrNetloc, svrMac)
+                chasId, svrChasEntry = self.rfaResAdds.addRfaRackServerChassis(svrId, svrNetloc, svrPduSockId, svrCredsId)
                 if chasId is not None:
                     self.chassisDict[chasId] = svrChasEntry 
                     if "BaseNavigationProperties" in svrChasEntry:
@@ -142,12 +183,12 @@ class RdStartupResourceDiscovery():
                             self.powerControlDict[chasId]={}
 
                 # create a Systems Entry for the rack server
-                sysId, svrSystemEntry = self.rfaResAdds.addRfaRackServerSystem(svrId, svrNetloc, svrMac)
+                sysId, svrSystemEntry = self.rfaResAdds.addRfaRackServerSystem(svrId, svrNetloc, svrCredsId)
                 if sysId is not None:
                     self.systemsDict[sysId] = svrSystemEntry 
 
                 # create a Manager Entry for the rack server's BMC
-                mgrId, svrManagerEntry = self.rfaResAdds.addRfaRackServerManager(svrId, svrNetloc, svrMac)
+                mgrId, svrManagerEntry = self.rfaResAdds.addRfaRackServerManager(svrId, svrNetloc, svrCredsId)
                 if mgrId is not None:
                     self.managersDict[mgrId] = svrManagerEntry 
         else:
@@ -180,11 +221,17 @@ class RdStartupResourceDiscovery():
             if "Netloc" not in self.managersDict[mgrId]:
                 rdr.logMsg("ERROR","..........Error-no netloc in managersDict  ")
                 continue
+            if "CredentialsId" not in self.managersDict[mgrId]:
+                rdr.logMsg("ERROR","..........Error-no credentialsId in managersDict  ")
+                continue
 
             netloc=self.managersDict[mgrId]["Netloc"]
+            credentialsId=self.managersDict[mgrId]["CredentialsId"]
+            credentialsInfo = self.rdr.backend.credentialsDb[credentialsId] # we earlier verified that all credIds are valid
+
             rdr.logMsg("INFO","...........adding server Id:{}, netloc:{}".format(mgrId,netloc))
-            rft = BmcRedfishTransport(rhost=netloc, isSimulator=isSimulator, debug=self.debug, 
-                                      credentialsPath=self.rdr.bmcCredentialsPath)
+            rft = BmcRedfishTransport(rhost=netloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug, 
+                                      credentialsInfo=credentialsInfo)
             waitTimeSave=rft.waitTime
 
             # Defensive: make sure this Id exists also for Chassis and Managers
@@ -224,7 +271,7 @@ class RdStartupResourceDiscovery():
                     chasCollUri = svcRoot["Chassis"]["@odata.id"]    # url to collection of chassis
                     rc,r,j,d = rft.rfSendRecvRequest( "GET", chasCollUri ) 
                     if rc is not 0:
-                        rdr.logMsg("ERROR","............ GET Chassis Collection failed for uri {}".format(chasCollUrl))
+                        rdr.logMsg("ERROR","............ GET Chassis Collection failed for uri {}".format(chasCollUri))
                     else:
                         # extract url to the chassis and save it
                         if ("Members" in d) and (len(d["Members"]) == 1) and ("@odata.id" in d["Members"][0]):
@@ -243,7 +290,7 @@ class RdStartupResourceDiscovery():
                     sysCollUri = svcRoot["Systems"]["@odata.id"]     # url to collection of Systems
                     rc,r,j,d = rft.rfSendRecvRequest( "GET", sysCollUri ) 
                     if rc is not 0:
-                        rdr.logMsg("ERROR","............ GET Systems Collection failed for uri {}".format(sysCollUrl))
+                        rdr.logMsg("ERROR","............ GET Systems Collection failed for uri {}".format(sysCollUri))
                     else:
                         # extract url to the system and save it
                         if ("Members" in d) and (len(d["Members"]) == 1) and ("@odata.id" in d["Members"][0]):

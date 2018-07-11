@@ -22,8 +22,14 @@ class RfSessionAuth(AuthBase):
         return(r)
 
 
+
 class RedfishTransport():
-    def __init__(self, rhost=None, isSimulator=False, debug=False, credentialsPath=None):
+    def __init__(self, rhost=None, isSimulator=False, debug=False, credentialsInfo=None):
+
+        # load the credential info: self.user, self.password, self.bmcType
+        # self.bmcType = oneOf("IDRAC","MockupServer","Generic")
+        self.credentialsInfo=credentialsInfo
+        self.rfGetCredentialsInfo()
 
         # default timeouts, headers, and nextlinks used by THIS transport
         self.MaxNextLinks=10                # max number of requests allowed with NextLink
@@ -32,7 +38,18 @@ class RedfishTransport():
         self.waitTime=3
         self.waitNum=1
         self.timeout=10         # http transport timeout in seconds, stored as int here
-        self.unauthenticatedApiScheme="http"  # xg-the scheme to use for unauthenticated APIs --http should always work
+        self.unauthenticatedApiScheme="http"  # the scheme to use for unauthenticated APIs --http should always work
+        if self.bmcType == "MockupServer":
+            self.unauthenticatedApiScheme="http"  # mockup server does not support https
+        elif self.bmcType == "IDRAC":
+            self.unauthenticatedApiScheme="https"  # the scheme to use for unauthenticated APIs --http should always work
+
+        # default scheme, authType, and username/password
+        self.scheme="https"      # the default scheme to use for this transport:  (https for idrac,    http for MC )
+        if self.bmcType == "MockupServer":
+            self.scheme="http"  # mockup server does not support https
+        elif self.bmcType == "IDRAC":
+            self.scheme="https"  # idrac only support https
 
         # default scheme, authType, and username/password
         self.scheme="http"      # the default scheme to use for this transport:  (https for idrac,    http for MC )
@@ -42,10 +59,8 @@ class RedfishTransport():
         self.SessionLoginUrl="/redfish/v1/SessionService/Sessions" # URI where Sessions collection is for session login
         self.program = "baseRMRedfishTransport"
 
-        # set paths to credential vault for this transport
-        self.credentialsPath=None
-        #self.credentialsPath="/etc/opt/dell/rm-tools/Credentials/mcroot/.passwd  # MC root password
-        #self.credentialsPath="/etc/opt/dell/rm-tools/Credentials/bmcuser/.passwd # BMC password
+        # set credentials info for this transport
+        self.credentialsInfo=credentialsInfo
 
         # session auth parameters stored here for when Session Auth is used
         self.sessionId=None
@@ -76,11 +91,8 @@ class RedfishTransport():
         self.elapsed=None
 
         # calculate self.rhost based on passed-in rhost
-        rfConnectionInit(rhost=rhost)
+        self.rfConnectionInit(rhost=rhost)
         
-        # load the credential file into the user, password property at self.user, self.password
-        rfGetCredentialsFromVault(self)
-
 
     def rfConnectionInit(self, rhost=None):
         # if rhost was passed-in when the transport was instantiated, then use the passed-in rhost IPaddress/port
@@ -90,21 +102,13 @@ class RedfishTransport():
         scheme_tuple=[self.unauthenticatedApiScheme, self.rhost, self.rootPath, "","",""]
         self.rootUrl=urlunparse(scheme_tuple)      # <scheme>://<netloc>/redfish/v1/
 
-    def rfGetCredentialsFromVault(self):
-        # if the path to the credential vault is not none,
-        # then we need to set the user and password equal to the value in the credential vault
-        # Note that some transports use AuthNone so the path is None
-        # And other transports may just use the default username/password in self.user, self.password
-        if self.credentialsPath is not None:
-            #  the password file has data of form:    <username>:<password>,  one entry per line.
-            # first verfiy we have a credential file
-            if os.path.isfile( self.credentialsPath ) is not True:
-                return(-1)
-            with open( self.credentialsPath, "r") as f:
-                creds = [x.strip().split(':') for x in f.readlines()]
-
-            # just get the 1st user for now
-            self.user,self.password=creds[0]
+    def rfGetCredentialsInfo(self):
+        # if the path to the credentials info vault is not none,
+        # then set the user and password equal to the value in the credential dict
+        if self.credentialsInfo is not None:
+            self.user = self.credentialsInfo["User"]
+            self.password = self.credentialsInfo["Password"]
+            self.bmcType =self.credentialsInfo["BmcType"]
             return(0)
 
 
@@ -585,9 +589,15 @@ class RedfishTransport():
 
 
 # generic BMC Redfish Transport class -- which supports idrac and openBMC
-#xg99
+#xg999
 class BmcRedfishTransport(RedfishTransport):
-    def __init__(self, rhost=None, isSimulator=False, debug=False, credentialsPath=None):
+    def __init__(self, rhost=None, isSimulator=False, debug=False, credentialsInfo=None):
+
+        # load the credential info: self.user, self.password, self.bmcType
+        # self.bmcType = oneOf("IDRAC","MockupServer","Generic")
+        self.credentialsInfo=credentialsInfo
+        self.rfGetCredentialsInfo()
+
         # default timeouts, headers, and nextlinks used by THIS transport
         self.MaxNextLinks=10                # max number of requests allowed with NextLink
         self.dfltPatchPostPutHdrs = {'OData-Version': '4.0', 'Content-Type': 'application/json', 'Accept': 'application/json'  }
@@ -595,26 +605,23 @@ class BmcRedfishTransport(RedfishTransport):
         self.waitTime=3
         self.waitNum=1
         self.timeout=5 #http transport timeout in seconds, stored as int here
-        self.unauthenticatedApiScheme="https"  # the scheme to use for unauthenticated APIs --http should always work
-        if isSimulator is True:
-            self.unauthenticatedApiScheme="http"  # when testing with Simulator or local, the iDrac mockup Server is http
+        self.unauthenticatedApiScheme="http"  # the scheme to use for unauthenticated APIs --http should always work
+        if self.bmcType == "MockupServer":
+            self.unauthenticatedApiScheme="http"  # mockup server does not support https
+        elif self.bmcType == "IDRAC":
+            self.unauthenticatedApiScheme="https"  # the scheme to use for unauthenticated APIs --http should always work
 
         # default scheme, authType, and username/password
         self.scheme="https"      # the default scheme to use for this transport:  (https for idrac,    http for MC )
-        if isSimulator is True:
-            self.scheme="http"      # when testing with Simulator or local, the iDrac mockup Server is http
+        if self.bmcType == "MockupServer":
+            self.scheme="http"  # mockup server does not support https
+        elif self.bmcType == "IDRAC":
+            self.scheme="https"  # idrac only support https
         self.auth="Basic"        # AuthN to use:    ("None" for MC,  "Session" or "Basic" for idrac)
-        self.user="root"        # get from credential vault, (this is the default)
-        self.password="calvin"  # get from credential vault, (this is the default)
+        self.user="root"          # get from credential vault, (this is the default)
+        self.password="password"  # get from credential vault, (this is the default)
         self.SessionLoginUrl="/redfish/v1/SessionService/Sessions" # URI where Sessions collection is for session login
         self.program = "BmcRedfishTransport"
-        # set paths to credential vault for this transport
-        #self.credentialsPath="/etc/opt/dell/rm-tools/Credentials/bmcuser/.passwd" # BMC password
-        self.credentialsPath=credentialsPath
-
-        # if running isSimulator with Simulator, we use default passwords--there is no credential vault
-        if isSimulator is True:
-            self.credentialsPath=None
 
         # session auth parameters stored here for when Session Auth is used
         self.sessionId=None
@@ -646,10 +653,6 @@ class BmcRedfishTransport(RedfishTransport):
 
         # calculate self.rhost based on passed-in rhost
         self.rfConnectionInit(rhost=rhost)
-
-        # load the credential file into the user, password property at self.user, self.password
-        self.rfGetCredentialsFromVault()
-
 
 # end
 
