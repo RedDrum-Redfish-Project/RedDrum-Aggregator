@@ -28,6 +28,8 @@ class RedfishTransport():
 
         # load the credential info: self.user, self.password, self.bmcType
         # self.bmcType = oneOf("IDRAC","MockupServer","Generic")
+        self.user="root"        # get from credential vault, (this is the default)
+        self.password="calvin"  # get from credential vault, (this is the default)
         self.credentialsInfo=credentialsInfo
         self.rfGetCredentialsInfo()
 
@@ -54,8 +56,6 @@ class RedfishTransport():
         # default scheme, authType, and username/password
         self.scheme="http"      # the default scheme to use for this transport:  (https for idrac,    http for MC )
         self.auth="None"        # AuthN to use:    ("None" for MC,  "Session" or "Basic" for idrac)
-        self.user="root"        # get from credential vault, (this is the default)
-        self.password="calvin"  # get from credential vault, (this is the default)
         self.SessionLoginUrl="/redfish/v1/SessionService/Sessions" # URI where Sessions collection is for session login
         self.program = "baseRMRedfishTransport"
 
@@ -226,6 +226,8 @@ class RedfishTransport():
             authType=None
             authMsg="None"
         
+        #print("CREDENTIALS: {} : {} : {}".format( rft.user , rft.password,  rft.bmcType ))
+
         # now send request to rhost, with retries based on -W <waitNum>:<waitTime> option.
         # handle exceptions including timeouts.
         success=None
@@ -595,8 +597,11 @@ class BmcRedfishTransport(RedfishTransport):
 
         # load the credential info: self.user, self.password, self.bmcType
         # self.bmcType = oneOf("IDRAC","MockupServer","Generic")
+        self.user="root"          # get from credential vault, (this is the default)
+        self.password="password"  # get from credential vault, (this is the default)
         self.credentialsInfo=credentialsInfo
         self.rfGetCredentialsInfo()
+        #print("CREDENTIALS: {} : {} : {}".format( self.user , self.password,  self.bmcType ))
 
         # default timeouts, headers, and nextlinks used by THIS transport
         self.MaxNextLinks=10                # max number of requests allowed with NextLink
@@ -618,8 +623,6 @@ class BmcRedfishTransport(RedfishTransport):
         elif self.bmcType == "IDRAC":
             self.scheme="https"  # idrac only support https
         self.auth="Basic"        # AuthN to use:    ("None" for MC,  "Session" or "Basic" for idrac)
-        self.user="root"          # get from credential vault, (this is the default)
-        self.password="password"  # get from credential vault, (this is the default)
         self.SessionLoginUrl="/redfish/v1/SessionService/Sessions" # URI where Sessions collection is for session login
         self.program = "BmcRedfishTransport"
 
