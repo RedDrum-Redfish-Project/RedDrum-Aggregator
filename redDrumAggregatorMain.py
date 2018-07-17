@@ -210,7 +210,7 @@ def redDrumMain(rdHost="127.0.0.1", rdPort=5001, isLocal=False, debug=False, rdS
     rdr.logMsg("INFO","  ...: baseDataPath:  {}".format(rdr.baseDataPath))
     rdr.logMsg("INFO","  ...: varDataPath:   {}".format(rdr.varDataPath))
     rdr.logMsg("INFO","  ...: RedDrumConfPath: {}".format(rdr.RedDrumConfPath))
-    rdr.logMsg("INFO","  ...: backendScriptsPath: {}".format(self.backendScriptsPath))
+    rdr.logMsg("INFO","  ...: backendScriptsPath: {}".format(rdr.backend.backendScriptsPath))
 
     # import the RedfishService front-end root service class 
     #     this instantiates all of the Front-end RedfishService resources--all resource live "under" the ServiceRoot
