@@ -1,0 +1,5 @@
+#!/bin/sh
+./clearCaches
+cd ..
+python3 redDrumAggregatorMain.py -L
+

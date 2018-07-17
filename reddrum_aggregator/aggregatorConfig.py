@@ -40,7 +40,7 @@ class RfaConfig():
 
         # CREDENTIALS File -- contains credential IDs
         self.bmcCredentialsFile="bmcCredentials-sim.json"
-        #self.credentialsFile="bmcCredentials-idrac.json"
+        #self.bmcCredentialsFile="bmcCredentials-idrac.json"
     
         # RACK ENCLOSURE RESOURCE SETTINGS -- should move somewhere else if we keep them
         self.rackModelNumber=""
