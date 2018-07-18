@@ -306,7 +306,7 @@ class RfaResourceAdds():
         resp["BaseNavigationProperties"]=["NetworkProtocol","EthernetInterfaces","LogServices"] # in BaseServerProfile
 
         resp["GetDateTimeFromOS"]=False
-        resp["ServiceEntryPointUUID"]=None  
+        #resp["ServiceEntryPointUUID"]=None  
         resp["DateTime"]=None  
         resp["DateTimeLocalOffset"]=None  
 
