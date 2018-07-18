@@ -48,9 +48,9 @@ if [ "${debug}" == "debug" ]; then
 fi
 
 echo "{"
-echo "    \"SSH\":   { \"ProtocolEnabled\": " "\"${sshEnabled}\" },"
-echo "    \"HTTP\":  { \"ProtocolEnabled\": " "\"${httpEnabled}\" },"
-echo "    \"HTTPS\": { \"ProtocolEnabled\": " "\"${httpsEnabled}\" },"
+echo "    \"SSH\":   { \"ProtocolEnabled\": " "${sshEnabled} },"
+echo "    \"HTTP\":  { \"ProtocolEnabled\": " "${httpEnabled} },"
+echo "    \"HTTPS\": { \"ProtocolEnabled\": " "${httpsEnabled} },"
 echo "    \"HostName\": " "\"${myhostname}\","
 echo "    \"FQDN\": " "\"${myfqdn}\""
 echo "}"
