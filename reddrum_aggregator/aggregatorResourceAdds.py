@@ -303,7 +303,8 @@ class RfaResourceAdds():
                                 "ConnectTypesSupported": None }
 
         resp["ActionsResetAllowableValues"]=["GracefulRestart","ForceRestart"]
-        resp["BaseNavigationProperties"]=["NetworkProtocol","EthernetInterfaces","LogServices"] # in BaseServerProfile
+        #resp["BaseNavigationProperties"]=["NetworkProtocol","EthernetInterfaces","LogServices"] # in BaseServerProfile
+        resp["BaseNavigationProperties"]=["NetworkProtocol","EthernetInterfaces"] # in BaseServerProfile
 
         resp["GetDateTimeFromOS"]=False
         #resp["ServiceEntryPointUUID"]=None  
