@@ -73,7 +73,15 @@ fi
 
 devPath="/sys/class/net/"${dev}"/"
 speed=`cat ${devPath}speed`
-mac=`cat  ${devPath}address`
+if [ "${speed}" = "" ]; then
+    speed="null"
+fi
+macraw=`cat  ${devPath}address`
+if [ "${macraw}" = "" ]; then
+    mac="null"
+else
+    mac="\"macraw\""
+fi
 duplex=`cat  ${devPath}duplex`       # full or half
 operstate=`cat  ${devPath}operstate` # up or down
 if [ "${duplex}" = "full" ]; then
@@ -102,8 +110,8 @@ echo "    \"Id\": " "\"${id}\","
 echo "    \"SpeedMbps\": " "${speed},"
 echo "    \"InterfaceEnabled\": " "${isinterfaceEnabled},"
 echo "    \"EthDevice\": " "\"${dev}\","
-echo "    \"MACAddress\": " "\"${mac}\","
-echo "    \"PermanentMACAddress\": " "\"${mac}\","
+echo "    \"MACAddress\": " "${mac},"
+echo "    \"PermanentMACAddress\": " "${mac},"
 echo "    \"IPV4Address\": " "\"${ipv4Address}\","
 echo "    \"IPV6Address\": " "\"${ipv6Address}\","
 echo "    \"IPV4Origin\": " "\"${v4Mode}\","
