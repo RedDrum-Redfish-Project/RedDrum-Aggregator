@@ -1,7 +1,8 @@
 {
 "RackServers": [
-  { "Id": "svr1", "IPv4Address": "127.0.0.1:8006", "PduSocketId": "SOCKET1",  "CredentialsId": "SIM0" },
-  { "Id": "svr2", "IPv4Address": "127.0.0.1:8007", "PduSocketId": "SOCKET2",  "CredentialsId": "SIM1" }
+  { "Id": "lab1", "IPv4Address": "127.0.0.1:8006", "PduSocketId": "SOCKET1",  "CredentialsId": "SIM0" },
+  { "Id": "lab2", "IPv4Address": "127.0.0.1:8007", "PduSocketId": "SOCKET2",  "CredentialsId": "SIM0" },
+  { "Id": "lab3", "IPv4Address": "127.0.0.1:8008", "PduSocketId": "SOCKET2",  "CredentialsId": "SIM0" }
   ]
 }  
 
