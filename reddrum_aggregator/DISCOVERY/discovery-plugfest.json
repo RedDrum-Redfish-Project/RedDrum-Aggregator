@@ -1,0 +1,17 @@
+{
+"Comment": "template example for several mockup servers and real servers at the DMTF plugfest",
+"RackServers": [
+  { "Id": "lab1mu",       "IPv4Address": "127.0.0.1:8006", "PduSocketId": "SOCKET1",  "CredentialsId": "SIM0" },
+  { "Id": "lab2mu",       "IPv4Address": "127.0.0.1:8007", "PduSocketId": "SOCKET2",  "CredentialsId": "SIM0" },
+  { "Id": "lab3mu",       "IPv4Address": "127.0.0.1:8008", "PduSocketId": "SOCKET3",  "CredentialsId": "SIM0" },
+  { "Id": "HPE",          "IPv4Address": "172.20.2.2",     "PduSocketId": "SOCKET4",  "CredentialsId": "HPE"  },
+  { "Id": "DellXR2",      "IPv4Address": "172.20.0.156",   "PduSocketId": "SOCKET5",  "CredentialsId": "IDRAC" },
+  { "Id": "Intel",        "IPv4Address": "172.20.3.99",    "PduSocketId": "SOCKET6",  "CredentialsId": "INTEL" },
+  { "Id": "IntelObmc",    "IPv4Address": "172.20.1.189",   "PduSocketId": "SOCKET7",  "CredentialsId": "INTELobmc" },
+  { "Id": "Insyde",       "IPv4Address": "172.20.1.24",    "PduSocketId": "SOCKET8",  "CredentialsId": "INSYDE"    },
+  { "Id": "SuperMicro",   "IPv4Address": "172.20.3.121",   "PduSocketId": "SOCKET9",  "CredentialsId": "SUPERMICRO" },
+  { "Id": "SuperMicroPPC","IPv4Address": "172.20.2.251",   "PduSocketId": "SOCKETA",  "CredentialsId": "SUPERMICRO" },
+  { "Id": "RedDrumObmc",  "IPv4Address": "172.20.1.121",   "PduSocketId": "SOCKETB",  "CredentialsId": "REDDRUM" }
+  ]
+}  
+

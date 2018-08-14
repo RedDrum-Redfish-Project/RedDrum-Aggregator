@@ -36,9 +36,10 @@ class RdAggrPDUlinuxInterfaces():
         resDb=self.rdr.root.chassis.chassisDb[chasId]
 
         # get the full path to the pduReseat script --this has already been verified to exist during discovery
-        wrapperScriptPath = self.rdr.backend.pduReseatWrapper
-        arg1 = self.rdr.backend.backendDiscoveryFilePaths # the path to the directory with the pduReseat scripts
-        arg2 = self.rdr.backend.pduReseatScript # the pduReseat script to run may include like "python2 script"
+        wrapperScriptPath = self.rdr.backend.backendPduReseatWrapperFilePath
+        arg1 = self.rdr.backend.backendPduReseatScriptApp  # the app used by pduWrapper.sh to execute the script
+        # the app may by "bash", "python3", "python2", etc
+        arg2 = self.rdr.backend.backendPduReseatScriptPath # the full path to the pduReseat script to run 
 
         # get the pduSocketId -- the string that represents a specific pdu socket id. 
         arg3 = resDb["PduSocketId"]  # the pduSocketId 

@@ -9,14 +9,14 @@ class RfaConfig():
         self.redfishAggregatorIsInsideSwitch=False
     
         # DISCOVERY
-        # -discoverRackServersFrom= OneOf( "LLDP", <a json resource filename in this directory> )
-        #    if "LLDP", the "lldpcli show neighbors " output is used to get list of discovered servers
-        #       --see also useTestLldpOutputFile property below
-        #    else, discovery will try to open a file in backend directory with list of static rack servers
-        #       --see example files for test below
-        self.discoverRackServersFrom="discovery_simulator2.json"   # two simulated iDracs running on ports 8001,8002
-        #self.discoverRackServersFrom="discovery_hwTestRack2.json" # a small rack of real hardware-2 servers
-        #self.discoverRackServersFrom="discovery_hwTestRack8.json" # a small rack of real hardware-8 servers
+        # * The Discovery .json files are now in subdir ./DISCOVERY
+        # * this property points to the discovery file that will be used in ./DISCOVERY
+        # * to customize the discovery file, you can either:
+        #   1) create your new discovery file from one of the templates in ./DISCOVERY and point to is here, -or-
+        #   2) leave this property pointing at the discovery-dlft.json target and copy your new customized file to 
+        #      discovery-dflt.json
+        self.discoverRackServersFrom="discovery-dflt.json"   
+        #Ex: self.discoverRackServersFrom="discovery-2servers.json" 
     
         # TEST CONFIG
         # - useTestLldpOuptutFile= OneOf( True,False )
@@ -33,14 +33,31 @@ class RfaConfig():
         # GENERAL API SETTINGS
         self.includeRackScaleOemProperties=True
 
-        # PDU Reseat Script -- this scriptname for the top-level bash wrapper script used to reseat a server chassis
-        #   one arg is passed:  SocketId
-        self.pduReseatScript="python2 pduReseatScript-sim.py"
-        #self.pduReseatScript="python2 pduReseatScript-apc.py"
+        # PDU Reseat App and Script -- this property identifies the App and Script that pduWrapper.sh will execute 
+        #  in order to reseat a server via a PDU.  
+        #   * pduReseatScriptApp is passed to pduWrapper.sh as argv1
+        #   * pduReseatScript    is passed to pduWrapper.sh as argv2
+        #   * pduWrapper.sh executes the Script using the App.   If App is none or "", it assumes bash
+        #   * the pdu scripts are now in subdir ./PDU_SCRIPTS.  
+        #   * as we support additional PDUs, we will accumulate additional pdu script templates
+        #   * to point at a new customized pdu script, you can either:
+        #     1) change the script name below to point to your new script in ./PDU_SCRIPTS, -or-
+        #     2) leave the target here set to the default pdu script: pduReseatScript-dflt.py and
+        #        then copy or link your new custom script to ./PDU_SCRIPTS/pduReseatScript-dflt.py 
+        #   * if your new script is not a python2 script, you must change the command here to run the currect client
+        self.pduReseatScriptApp="python2"
+        self.pduReseatScript="pduReseatScript-dflt.py"
+        #ex:  self.pduReseatScript="python2 pduReseatScript-xyz.py"
 
         # CREDENTIALS File -- contains credential IDs
-        self.bmcCredentialsFile="bmcCredentials-sim.json"
-        #self.bmcCredentialsFile="bmcCredentials-idrac.json"
+        #   * the credential files are now in ./CREDENTIALS.
+        #   * several example credentials files are also in ./CREDENTIALS
+        #   * if you need to customize the credentials file, you can create a new one from the templates and either:
+        #     1) point to the new file here, -or-
+        #     2) leave this property pointing at the generic credential file ./CREDENTIALS/bmcCredentials-dflt.json
+        #        and copy your new file to bmcCredentials-dflt.json
+        self.bmcCredentialsFile="bmcCredentials-dflt.json"
+        #Ex: self.bmcCredentialsFile="bmcCredentials-idrac.json"
     
         # RACK ENCLOSURE RESOURCE SETTINGS -- should move somewhere else if we keep them
         self.rackModelNumber=""

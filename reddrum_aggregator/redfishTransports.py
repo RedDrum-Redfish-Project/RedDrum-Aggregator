@@ -27,7 +27,7 @@ class RedfishTransport():
     def __init__(self, rhost=None, isSimulator=False, debug=False, credentialsInfo=None):
 
         # load the credential info: self.user, self.password, self.bmcType
-        # self.bmcType = oneOf("IDRAC","MockupServer","Generic")
+        # self.bmcType = oneOf("IDRAC","MockupServer","Generic",INTELobmc)
         self.user="root"        # get from credential vault, (this is the default)
         self.password="calvin"  # get from credential vault, (this is the default)
         self.credentialsInfo=credentialsInfo
@@ -41,16 +41,16 @@ class RedfishTransport():
         self.waitNum=1
         self.timeout=10         # http transport timeout in seconds, stored as int here
         self.unauthenticatedApiScheme="http"  # the scheme to use for unauthenticated APIs --http should always work
-        if self.bmcType == "MockupServer":
+        if self.bmcType == "MockupServer" or isSimulator is True:
             self.unauthenticatedApiScheme="http"  # mockup server does not support https
-        elif self.bmcType == "IDRAC":
+        elif self.bmcType == "IDRAC" or self.bmcType == "INTELobmc":
             self.unauthenticatedApiScheme="https"  # the scheme to use for unauthenticated APIs --http should always work
 
         # default scheme, authType, and username/password
         self.scheme="https"      # the default scheme to use for this transport:  (https for idrac,    http for MC )
-        if self.bmcType == "MockupServer":
+        if self.bmcType == "MockupServer" or isSimulator is True:
             self.scheme="http"  # mockup server does not support https
-        elif self.bmcType == "IDRAC":
+        elif self.bmcType == "IDRAC" or self.bmcType == "INTELobmc":
             self.scheme="https"  # idrac only support https
 
         # default scheme, authType, and username/password
@@ -591,12 +591,11 @@ class RedfishTransport():
 
 
 # generic BMC Redfish Transport class -- which supports idrac and openBMC
-#xg999
 class BmcRedfishTransport(RedfishTransport):
     def __init__(self, rhost=None, isSimulator=False, debug=False, credentialsInfo=None):
 
         # load the credential info: self.user, self.password, self.bmcType
-        # self.bmcType = oneOf("IDRAC","MockupServer","Generic")
+        # self.bmcType = oneOf("IDRAC","MockupServer","Generic", "INTELobmc")
         self.user="root"          # get from credential vault, (this is the default)
         self.password="password"  # get from credential vault, (this is the default)
         self.credentialsInfo=credentialsInfo
@@ -611,16 +610,16 @@ class BmcRedfishTransport(RedfishTransport):
         self.waitNum=1
         self.timeout=5 #http transport timeout in seconds, stored as int here
         self.unauthenticatedApiScheme="http"  # the scheme to use for unauthenticated APIs --http should always work
-        if self.bmcType == "MockupServer":
+        if self.bmcType == "MockupServer" or isSimulator is True:
             self.unauthenticatedApiScheme="http"  # mockup server does not support https
-        elif self.bmcType == "IDRAC":
+        elif self.bmcType == "IDRAC" or self.bmcType == "INTELobmc":
             self.unauthenticatedApiScheme="https"  # the scheme to use for unauthenticated APIs --http should always work
 
         # default scheme, authType, and username/password
         self.scheme="https"      # the default scheme to use for this transport:  (https for idrac,    http for MC )
-        if self.bmcType == "MockupServer":
+        if self.bmcType == "MockupServer" or isSimulator is True:
             self.scheme="http"  # mockup server does not support https
-        elif self.bmcType == "IDRAC":
+        elif self.bmcType == "IDRAC" or self.bmcType == "INTELobmc":
             self.scheme="https"  # idrac only support https
         self.auth="Basic"        # AuthN to use:    ("None" for MC,  "Session" or "Basic" for idrac)
         self.SessionLoginUrl="/redfish/v1/SessionService/Sessions" # URI where Sessions collection is for session login

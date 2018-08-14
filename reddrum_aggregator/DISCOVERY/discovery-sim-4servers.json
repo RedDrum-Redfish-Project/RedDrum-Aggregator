@@ -1,0 +1,10 @@
+{
+"Comment": "template example for 4 Dell PE servers running behind an http mockup server w/o auth",
+"RackServers": [
+  { "Id": "lab1mu",       "IPv4Address": "127.0.0.1:8006", "PduSocketId": "SOCKET1",  "CredentialsId": "SIM0" },
+  { "Id": "lab2mu",       "IPv4Address": "127.0.0.1:8007", "PduSocketId": "SOCKET2",  "CredentialsId": "SIM0" },
+  { "Id": "lab3mu",       "IPv4Address": "127.0.0.1:8008", "PduSocketId": "SOCKET3",  "CredentialsId": "SIM0" },
+  { "Id": "lab4mu",       "IPv4Address": "127.0.0.1:8008", "PduSocketId": "SOCKET3",  "CredentialsId": "SIM0" }
+  ]
+}  
+

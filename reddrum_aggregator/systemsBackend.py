@@ -48,9 +48,12 @@ class  RdSystemsBackend():
         resVolDb["UpdateTime"] = curTime
 
         # extract the netloc and system entry URL from the systemsDb saved during discovery
-        netloc = resDb["Netloc"]
-        sysUrl = resDb["SysUrl"]
-        credentialsId = resDb["CredentialsId"]
+        if "Netloc" in resDb and "SysUrl" in resDb and "CredentialsId" in resDb:
+            netloc = resDb["Netloc"]
+            sysUrl = resDb["SysUrl"]
+            credentialsId = resDb["CredentialsId"]
+        else:
+            return(17,False)
 
         # open Redfish transport to this bmc
         rft = BmcRedfishTransport(rhost=netloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug,

@@ -10,7 +10,7 @@ from subprocess import Popen, PIPE
 import json
 import ipaddress
 
-class RdAggrMgrLinuxInterfaces():
+class RdMgrLinuxInterfaces():
     def __init__(self,rdr):
         self.rdr = rdr
         self.x = 1
@@ -25,7 +25,7 @@ class RdAggrMgrLinuxInterfaces():
     #     "HostName":  "openbmc2",
     #     "FQDN":  "openbmc2.ocp.org"
     # }
-    # The script getObmcProtocolInfo.sh uses linux commands to get the protocol info:
+    # The script getMgrProtocolInfo.sh uses linux commands to get the protocol info:
     # netstat -tlp output is passed through awk script to determine if ssh, http, and https is enabled
     #  netstatinfo=`netstat -tlp`; echo "${netstatinfo}" | awk '/ssh/ {print $4; exit }' 
     #  if  no response, the ProtocolEnabled is False.  else ProtocolEnabled is True 
@@ -33,11 +33,11 @@ class RdAggrMgrLinuxInterfaces():
     # FQDN     is output of command:  hostname -f -- runs hostname and uses "1st" alias for hostname
     #                                      that is stored in /etc/hosts (1st alias is fqdn)
     #    in linux, to store fqdn, you must thus edit /etc/hosts
-    def getObmcNetworkProtocolInfo(self):
+    def getMgrNetworkProtocolInfo(self):
         exitcode = 500
         protoInfo={}
         #return(exitcode,protoInfo)
-        scriptPath = os.path.join(self.rdr.backend.backendScriptsPath, "getObmcProtocolInfo.sh")
+        scriptPath = os.path.join(self.rdr.backend.backendScriptsPath, "getMgrProtocolInfo.sh")
         arg1 = "arg1" # current script doesn't require arg but showing here if we need to add
         arg2 = "arg2" # 
         proc = Popen([scriptPath,arg1,arg2],stdout=PIPE,stderr=PIPE)
@@ -49,10 +49,10 @@ class RdAggrMgrLinuxInterfaces():
             return(exitcode,protoInfo)
 
         # else process the output
-        #  getObmcProtocolInfo.sh outputs a json response structure with properties 
+        #  getMgrProtocolInfo.sh outputs a json response structure with properties 
         #  load to a json struct
-        getObmcProtocolInfoOutputString = str(out, encoding='UTF-8')   # convert from bytes to utf8 string. 
-        protoInfo=json.loads(getObmcProtocolInfoOutputString )
+        getMgrProtocolInfoOutputString = str(out, encoding='UTF-8')   # convert from bytes to utf8 string. 
+        protoInfo=json.loads(getMgrProtocolInfoOutputString )
 
         return(0,protoInfo)
 
@@ -60,11 +60,11 @@ class RdAggrMgrLinuxInterfaces():
     # --------------------------------------------------
     # --------------------------------------------------
     # get Manager Ethernet settings, for previously discovered device eg device "Eth0"
-    def getObmcIpInfo(self,device):
+    def getMgrIpInfo(self,device):
         exitcode = 500
         ipInfo={}
         #return(exitcode,ipInfo)
-        scriptPath = os.path.join(self.rdr.backend.backendScriptsPath, "getObmcIpInfo.sh")
+        scriptPath = os.path.join(self.rdr.backend.backendScriptsPath, "getMgrIpInfo.sh")
         arg1 = device # the "device" Name to use in the response
         arg2 = "arg2" # 
         proc = Popen([scriptPath,arg1,arg2],stdout=PIPE,stderr=PIPE)
@@ -77,7 +77,7 @@ class RdAggrMgrLinuxInterfaces():
         if exitcode != 0:
             return(exitcode,ipInfo)
 
-        # getObmcIpInfo.sh outputs a json response structure of form:
+        # getMgrIpInfo.sh outputs a json response structure of form:
         #  ipv4info=[{"Address": "EEE", "SubnetMask": "EEE", "Gateway": "EEE", "AddressOrigin": "EEE"}]
         #  ethDeviceInfo = {
         #        "Name": "eth1", "SpeedMbps": 1000, "HostName": "", "FQDN": "", "LinkStatus": "EEE",
@@ -85,9 +85,9 @@ class RdAggrMgrLinuxInterfaces():
         #        "MACAddress": "AAA", "PermanentMACAddress": "AAA", "IPv4Addresses": ipv4info
         #  }
         #  load to a json struct
-        getObmcIpInfoOutputString = str(out, encoding='UTF-8')   # convert from bytes to utf8 string. 
-        #print(" ipinfo: {}".format(getObmcIpInfoOutputString))
-        backendGetIpInfo=json.loads(getObmcIpInfoOutputString )
+        getMgrIpInfoOutputString = str(out, encoding='UTF-8')   # convert from bytes to utf8 string. 
+        #print(" ipinfo: {}".format(getMgrIpInfoOutputString))
+        backendGetIpInfo=json.loads(getMgrIpInfoOutputString )
 
 
         baseEthProperties = ["MACAddress","PermanentMACAddress","InterfaceEnabled","LinkStatus",
