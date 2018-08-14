@@ -1,4 +1,5 @@
 {
+"Comment": "template example for a rack with two servers with IDRAC dflt credentials",
 "RackServers": [
   { "Id": "svr1", "IPv4Address": "192.168.0.111", "PduSocketId": "1", "CredentialsId": "IDRAC0" },  
   { "Id": "svr2", "IPv4Address": "192.168.0.112", "PduSocketId": "2", "CredentialsId": "IDRAC0" }

@@ -3,10 +3,9 @@
 # $1 is the path where the scripts are
 # $2 is the script to run -- which may include a utility and script like: python2 scriptname
 # $3 is the socketId
-scriptPath=$1
+pduReseatScriptApp=$1
 pduReseatScript=$2
 pduSocketId=$3  
-cd ${scriptPath}
-${pduReseatScript} ${pduSocketId}
+${pduReseatScriptApp} ${pduReseatScript} ${pduSocketId}
 rc=$?
 exit $rc

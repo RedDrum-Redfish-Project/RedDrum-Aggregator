@@ -1,4 +1,5 @@
 #!python2
+# pdu reset script for APC PDU in test lab at ip 192.168.21.29
 import telnetlib
 import time
 import sys

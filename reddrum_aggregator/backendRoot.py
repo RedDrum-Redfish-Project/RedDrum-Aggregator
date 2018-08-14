@@ -12,7 +12,7 @@ from .managersBackend  import RdManagersBackend
 from .systemsBackend   import RdSystemsBackend
 
 from .startupResourceDiscovery   import RdStartupResourceDiscovery
-from .oemFrontendUtils  import DellESI_FrontendOemUtils
+from .oemFrontendUtils  import FrontendOemUtils
 
 
 class RdBackendRoot():
@@ -21,7 +21,7 @@ class RdBackendRoot():
         self.backendStatus=0
         self.discoveryState = 0
         self.rdr = rdr
-        self.oemUtils=DellESI_FrontendOemUtils(rdr)
+        self.oemUtils=FrontendOemUtils(rdr)
         #   valid rdBeIdConstructionRule values are:  "Monolythic", "Dss9000", "Aggregator"
         self.rdBeIdConstructionRule="Aggregator"
         self.includeRackScaleOemProperties=True

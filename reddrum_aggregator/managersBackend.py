@@ -4,7 +4,7 @@
 #    License: BSD License.  For full license text see link: https://github.com/RedDrum-Redfish-Project/RedDrum-OpenBMC/LICENSE.txt
 
 from .redfishTransports import BmcRedfishTransport
-from .aggrMgrLinuxInterfaces import RdAggrMgrLinuxInterfaces
+from .mgrLinuxInterfaces import RdMgrLinuxInterfaces
 import time,json
 import datetime
 import os
@@ -19,7 +19,7 @@ class  RdManagersBackend():
         self.rdr=rdr
         self.version=1
         self.debug=False
-        self.linuxApis=RdAggrMgrLinuxInterfaces(rdr)
+        self.linuxApis=RdMgrLinuxInterfaces(rdr)
 
     # update resourceDb and volatileDict
     def updateResourceDbs(self,managerid, updateStaticProps=False, updateNonVols=True ):
@@ -130,7 +130,7 @@ class  RdManagersBackend():
                                 resDb["OemDellG5MCMgrInfo"][prop]=sysHwMonData["Oem"]["Dell_G5MC"][prop]
                                 updatedResourceDb=True
         # update other properties
-        aggrMgrOtherProps=["SerialConsole","GraphicalConsole","CommandShell"]
+        aggrMgrOtherProps=["SerialConsole","GraphicalConsole","CommandShell","DateTime","DateTimeLocalOffset"]
         for prop in aggrMgrOtherProps:
             if prop in sysHwMonData:
                 resDb[prop]=sysHwMonData[prop]
@@ -314,7 +314,7 @@ class  RdManagersBackend():
         if self.isManagerTheRackAggregationManager( mgrid) is True:
             backendSupportedProtocols = ["HTTP","HTTPS","SSH"]
             if "NetworkProtocols" in resDb:
-                rc,mgrNetwkProtoInfo = self.linuxApis.getObmcNetworkProtocolInfo()
+                rc,mgrNetwkProtoInfo = self.linuxApis.getMgrNetworkProtocolInfo()
                 #print("EEEEExg99: rc: {},   mnp: {}".format(rc,mgrNetwkProtoInfo))
                 if rc==0:
                     for proto in backendSupportedProtocols:
@@ -421,7 +421,7 @@ class  RdManagersBackend():
                     ethResDb = resDb["EthernetInterfaces"][ethid]
     
                     # update IPv4Address info and MACAddress info
-                    rc,ipInfo=self.linuxApis.getObmcIpInfo(ethid)
+                    rc,ipInfo=self.linuxApis.getMgrIpInfo(ethid)
                     ipProperties = ["Name","MACAddress","PermanentMACAddress","InterfaceEnabled","LinkStatus",
                                     "SpeedMbps","HostName","FQDN","AutoNeg", "IPv4Addresses" ]
                     for ipProp in ipProperties:

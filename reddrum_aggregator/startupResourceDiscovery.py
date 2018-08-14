@@ -48,24 +48,51 @@ class RdStartupResourceDiscovery():
 
         #PHASE-0b: get pduReseatScript
         rdr.logMsg("INFO","....discovery: running phase-0b. Getting pduReseatScript from aggregatorConfig.py")
+        rdr.backend.backendPduReseatWrapperFilePath=os.path.join( self.rdr.backend.backendDiscoveryFilePaths, "pduReseatWrapper.sh" )
+        rdr.backend.backendPduScriptsDirPath=os.path.join( self.rdr.backend.backendDiscoveryFilePaths, "PDU_SCRIPTS" )
+        # verify that App is valid
+        pduReseatScriptApp=self.rfaCfg.pduReseatScriptApp
+        if pduReseatScriptApp is None or pduReseatScriptApp=="":
+            rdr.backend.backendPduReseatScriptApp="bash"
+        else:
+            rdr.backend.backendPduReseatScriptApp=pduReseatScriptApp
+        # verify that the ReseatScrip exists 
         pduReseatScript=self.rfaCfg.pduReseatScript
-        rdr.backend.pduReseatWrapper=os.path.join( self.rdr.backend.backendDiscoveryFilePaths, "pduReseatWrapper.sh" )
-        rdr.backend.pduReseatScript=pduReseatScript=pduReseatScript
-        #if not os.path.isfile(rdr.backend.pduApiScript):
-        #    rdr.logMsg("ERROR","....discovery: phase-0b. Cant find pduReseatScript: {}".format(pduReseatScript))
-        #    rdr.logMsg("CRITICAL","...... aborting discovery and startup")
+        rdr.backend.backendPduReseatScriptPath=os.path.join( self.rdr.backend.backendDiscoveryFilePaths, "PDU_SCRIPTS", pduReseatScript )
+        if not os.path.isfile(rdr.backend.backendPduReseatScriptPath):
+            rdr.logMsg("ERROR","....discovery: phase-0b. Cant find pduReseatScript: {}".format(rdr.backend.backendPduReseatScriptPath))
+            rdr.logMsg("CRITICAL","...... aborting discovery and startup")
+            return(12)
+        rdr.logMsg("INFO",
+                "........using pduReseat app: {} and script: {}".format(rdr.backend.backendPduReseatScriptApp, 
+                             rdr.backend.backendPduReseatScriptPath))
 
         #PHASE-0c: get credentialsIdFile
         rdr.logMsg("INFO","....discovery: running phase-0c. Getting bmcCredentialsFile from aggregatorConfig.py")
         bmcCredentialsFile=self.rfaCfg.bmcCredentialsFile
-        bmcCredentialsFilePath=os.path.join( self.rdr.backend.backendDiscoveryFilePaths, bmcCredentialsFile)
+        bmcCredentialsFilePath=os.path.join( self.rdr.backend.backendDiscoveryFilePaths, "CREDENTIALS", bmcCredentialsFile)
         if not os.path.isfile(bmcCredentialsFilePath):
             rdr.logMsg("ERROR","....discovery: phase-0c. Cant find bmcCredentialsFile: {}".format(bmcCredentialsFile))
             rdr.logMsg("CRITICAL","...... aborting discovery and startup")
             return(13)
         else:
             self.rdr.backend.credentialsDb = json.loads( open( bmcCredentialsFilePath, "r").read() )
-        
+        rdr.logMsg("INFO",
+                "........using bmcCredentials json file: {}".format(bmcCredentialsFile))
+
+        #PHASE-0d: get rackservers discovery file
+        rdr.logMsg("INFO","....discovery: running phase-0d. Getting rackServers Discovery File from aggregatorConfig.py")
+        rdr.logMsg("INFO",
+                "........using discovery json file: {}".format(self.rfaCfg.discoverRackServersFrom))
+        discoveryFile=self.rfaCfg.discoverRackServersFrom
+        rackServersFilePath=os.path.join(self.rdr.backend.backendDiscoveryFilePaths, "DISCOVERY", discoveryFile)
+        if not os.path.isfile(rackServersFilePath):
+            rdr.logMsg("ERROR","....discovery: phase-0d. Cant find server discovery file: {}".format(discoveryFile))
+            rdr.logMsg("CRITICAL","...... aborting discovery and startup")
+            return(14)
+        else:
+            rackServersDiscoveryDict = json.loads( open( rackServersFilePath, "r").read() )
+
 
         #PHASE-1:  discover the rack level Resources
         rdr.logMsg("INFO","....discovery: running phase-1.  adding Rack-Level Resources")
@@ -98,39 +125,9 @@ class RdStartupResourceDiscovery():
             rdr.logMsg("INFO","....discovery: running phase-1d.  Redfish Aggregator chassis is inside Switch-no addl chassis")
 
 
-        #PHASE-1e:  discover the list of server IPs from LLDP
-        #the output of this phase is that a "rackServersDiscoveryDict" dict is created of form:
-        #     { "Environment": "Simulator",
-        #     "RackServers": [
-        #        { "Id": "svr1", "IPv4Address": "127.0.0.1", "Port": 8001 },
-        #        { "Id": "svr2", "IPv4Address": "127.0.0.1", "Port": 8802 }
-        #        ] }
-        rdr.logMsg("INFO","....discovery: running phase-1e.  discover rack servers in this rack")
-        if( self.rfaCfg.discoverRackServersFrom == "LLDP"):
-            rdr.logMsg("INFO","........discovering rack servers using LLDP info from Mgt Switch")
-            if self.rfaCfg.useTestLldpOutputFile is True:
-                rdr.logMsg("INFO","...........using using static LLDP test output file testLldpOutputFile.txt in backend ")
-                # read the test LldpOutput file: testLldpOutputFile.txt 
-                lldpDiscoveryFilePath=os.path.join(self.rdr.backend.backendDiscoveryFilePaths,"testLldpOutputFile.txt")
-                if os.path.isfile(lldpDiscoveryFilePath):
-                    # parse the Lldp Output file into a rackServersDiscoveryDict of form shown above
-                    rc,rackServersDiscoveryDict = self.rfaLldp.parseLldpShowNeighbors(lldpDiscoveryFilePath)
-                    if rc !=0:
-                        rdr.logMsg("ERROR","...........Error parsing Lldp Output File")
-                else:
-                    rdr.logMsg("ERROR","...........Cant find or open Lldp Output File: {}".format(lldpDiscoveryFilePath))
-            else:
-                # get an LldpOutput file from the MgtSwitch and parse it
-                rdr.logMsg("INFO","...........getting LLDP info from Mgt Switch")
-                rdr.logMsg("INFO","............ **** currently not supported skipping rack server discovery ***")
-        else:
-            rdr.logMsg("INFO",
-                "........discovering rack servers from static json file: {}".format(self.rfaCfg.discoverRackServersFrom))
-            # load the json discovery file into rackServersDiscoveryDict of form shown above.
-            # note that "Port" is only used if "Environment"="Simulator"
-            rackServersFilename=os.path.join(self.rdr.backend.backendDiscoveryFilePaths, self.rfaCfg.discoverRackServersFrom)
-            if os.path.isfile(rackServersFilename):
-                rackServersDiscoveryDict = json.loads( open( rackServersFilename, "r").read() )
+        #PHASE-1e:  resync rackserver discovery file 
+        rdr.logMsg("INFO","....discovery: running phase-1e.  updating rack server discovery")
+        # add update phase if required later
 
 
         #PHASE-1f:  add rack servers to Systems, Chassis, and Managers DBs
@@ -240,9 +237,12 @@ class RdStartupResourceDiscovery():
                 continue
 
             # read the service root
-            rft.waitTime=2
+            rft.waitTime=5
             rc,r,j,svcRoot = rft.rfSendRecvRequest("GET", "/redfish/v1")
             rft.waitTime=waitTimeSave
+            if rc==6:
+                rdr.logMsg("ERROR","..........error getting service root for id: {}. rc: {} RETRY".format(mgrId,rc))
+                rc,r,j,svcRoot = rft.rfSendRecvRequest("GET", "/redfish/v1")
             if rc is not 0:
                 rdr.logMsg("ERROR","..........error getting service root for id: {}. rc: {}".format(mgrId,rc))
             else:
@@ -255,6 +255,7 @@ class RdStartupResourceDiscovery():
                         rdr.logMsg("ERROR","............ GET Managers Collection failed for uri {}".format(mgrCollUri))
                     else:
                         # extract url to the manager and save it
+                        # xg9999 may want to handle multiple managers
                         if ("Members" in d) and (len(d["Members"]) == 1) and ("@odata.id" in d["Members"][0]):
                             mgrUrl = d["Members"][0]["@odata.id"]
                             self.managersDict[mgrId]["MgrUrl"] = mgrUrl
@@ -274,13 +275,42 @@ class RdStartupResourceDiscovery():
                         rdr.logMsg("ERROR","............ GET Chassis Collection failed for uri {}".format(chasCollUri))
                     else:
                         # extract url to the chassis and save it
-                        if ("Members" in d) and (len(d["Members"]) == 1) and ("@odata.id" in d["Members"][0]):
-                            chasUrl = d["Members"][0]["@odata.id"]
-                            self.chassisDict[chasId]["ChasUrl"] = chasUrl
-                            self.chassisDict[chasId]["BaseUrl"]= rootUri
-                            rdr.logMsg("INFO","............ added chassis: {}, Url: {}".format(chasId,chasUrl))
-                        else:
-                            rdr.logMsg("ERROR","............ no Chassis Member found in Chassis Collection for {}".format(chasId))
+                        if ("Members" in d):
+                            if (len(d["Members"]) == 1) and ("@odata.id" in d["Members"][0]):
+                                chasUrl = d["Members"][0]["@odata.id"]
+                                self.chassisDict[chasId]["ChasUrl"] = chasUrl
+                                self.chassisDict[chasId]["BaseUrl"]= rootUri
+                                rdr.logMsg("INFO","............ added chassis: {}, Url: {}".format(chasId,chasUrl))
+                            else: 
+                                # get manager entry to find the chassis it manages
+                                # mgrUrl is still valid
+                                rdr.logMsg("INFO","............ getting mgr entry to find chassisId..")
+                                rc,r,j,dmgr = rft.rfSendRecvRequest( "GET", mgrUrl ) 
+                                print("EEEEEEEEEEEEEEEEEEEEEEEEE")
+                                if rc is not 0:
+                                    rdr.logMsg("ERROR","............ GET Manager failed for uri {}".format(mgrUrl))
+                                else:
+                                    if "Links" in dmgr and "ManagerForChassis" in dmgr["Links"]:
+                                        print("EEEEEEEEEEEEEEEEEEEEEEEEE")
+                                        mgrForChas=dmgr["Links"]["ManagerForChassis"]
+                                        if len(mgrForChas)==1 and "@odata.id" in mgrForChas[0]:
+                                            print("EEEEEEEEEEEEEEEEEEEEEEEEE")
+                                            chasUrl = mgrForChas[0]["@odata.id"]
+                                            self.chassisDict[chasId]["ChasUrl"] = chasUrl
+                                            self.chassisDict[chasId]["BaseUrl"]= rootUri
+                                            rdr.logMsg("INFO","............ added chassis: {}, Url: {}".format(chasId,chasUrl))
+                                        else:
+                                            rdr.logMsg("ERROR","A............ no Chassis Member found for {}".format(chasId))
+                                    else:
+                                        print("BBBBBBBBBBBBBBBBBBBBBBB")
+                                        if "Model" in dmgr and dmgr["Model"]=="OpenBmc":
+                                            print("Assuming chasId=R1000_Chassis EEEEEEEEEEEEEEEEEEEEEEEEE")
+                                            chasUrl = "/redfish/v1/Chassis/R1000_Chassis"
+                                            self.chassisDict[chasId]["ChasUrl"] = chasUrl
+                                            self.chassisDict[chasId]["BaseUrl"]= rootUri
+                                            rdr.logMsg("INFO","............ added chassis: {}, Url: {}".format(chasId,chasUrl))
+                                        else:
+                                            rdr.logMsg("ERROR","B............ no Chassis Member found for {}".format(chasId))
                 else:
                     rdr.logMsg("ERROR","............ no Chassis property in service root for svr Id {}".format(chasId))
 
