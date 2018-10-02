@@ -2,12 +2,16 @@
 The following files may need to be edited for specific configs:
 
 1. aggregatorConfig.py -- top level aggregator config properties:
-    == discoverRackServersFrom=discovery_hwTestRack2.json # or file with similar contents--the discovered servers
+    == discoverRackServersFrom=discovery-dflt.json        # or file with similar contents--the discovered servers
     == redfishAggregatorIsInsideSwitch = True             # for aggregator running inside Cumulus
+                                                          #  set False if aggregator is in separate server or appliance
     == isRackSim=False                                    # for real HW
     == includeRackScaleOemProperties=True                 # for RSD support
-    == pduReseatScript="python2 pduReseatScript-apc.py"   # for apc PDU on real rack
-    == bmcCredentialsFile="bmcCredentials-idrac.json"     # for idrac
+
+    == pduReseatScriptApp="python2"                       # the linux app used to run the pduReseatScript (bash, python3, python2...)
+    == pduReseatScript="pduReseatScript-dflt.py"          # script to run that should match the pdu
+
+    == bmcCredentialsFile="bmcCredentials-dflt.json"      # in /CREDENTIALS/ --credential file that matches the bmc credentials
 
     -- various Rack Enclosure settings eg RackModelNum
     -- various Management Switch settings eg ModelNum

@@ -1,0 +1,15 @@
+{
+"Comment": "template example for 4 Dell PE servers running behind an http mockup server w/o auth",
+"RackServers": [
+  { "Id": "SYS1",       "IPv4Address": "127.0.0.1:8006", "PduSocketId": "SOCKET1",  "CredentialsId": "SIM0" },
+  { "Id": "XR2",       "IPv4Address": "127.0.0.1:8007", "PduSocketId": "SOCKET2",  "CredentialsId": "SIM0" },
+  { "Id": "HPE",       "IPv4Address": "127.0.0.1:8008", "PduSocketId": "SOCKET3",  "CredentialsId": "SIM0" },
+  { "Id": "RDOBMC",       "IPv4Address": "127.0.0.1:8009", "PduSocketId": "SOCKET4",  "CredentialsId": "SIM0" },
+  { "Id": "INSYDE",       "IPv4Address": "127.0.0.1:8010", "PduSocketId": "SOCKET5",  "CredentialsId": "SIM0" },
+  { "Id": "INTEL",       "IPv4Address": "127.0.0.1:8011", "PduSocketId": "SOCKET6",  "CredentialsId": "SIM0" },
+  { "Id": "SUPERMICRO",       "IPv4Address": "127.0.0.1:8012", "PduSocketId": "SOCKET7",  "CredentialsId": "SIM0" },
+  { "Id": "INTELOBMC",       "IPv4Address": "127.0.0.1:8013", "PduSocketId": "SOCKET8",  "CredentialsId": "SIM0" },
+  { "Id": "SUPEROBMC",       "IPv4Address": "127.0.0.1:8014", "PduSocketId": "SOCKET9",  "CredentialsId": "SIM0" }
+  ]
+}  
+

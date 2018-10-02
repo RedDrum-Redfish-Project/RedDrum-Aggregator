@@ -140,7 +140,7 @@ def redDrumMain(rdHost="127.0.0.1", rdPort=5001, isLocal=False, debug=False, rdS
     # this works even if the Frontend package above was put in site-packages
     rdr.frontEndPkgPath=os.path.dirname( inspect.getfile(RdRootData)) # return the path to reddrum_frontend
     rdr.frontEndDirPath=os.path.abspath(os.path.join(rdr.frontEndPkgPath, ".."))
-    #print("EEEEEEEEEEEEEEEE DIR: frontend dir: {}".format(rdr.frontEndDirPath))
+    print("EEEEEEEEEEEEEEEE DIR: frontend dir: {}".format(rdr.frontEndDirPath))
 
     # initialize root data with passed-in args
     rdr.rdHost=rdHost                  # the dflt is 127.0.0.1

@@ -3,10 +3,6 @@ class RfaConfig():
     def __init__(self):
     
         # RACK CONFIG
-        # -redfishAggregatorIsInsideSwitch= OneOf( True, False )
-        #    set to false to model case where Aggregator is in a separate server--not inside mgt switch
-        #    set to true if running on switch as container or venv
-        self.redfishAggregatorIsInsideSwitch=False
     
         # DISCOVERY
         # * The Discovery .json files are now in subdir ./DISCOVERY
@@ -15,16 +11,12 @@ class RfaConfig():
         #   1) create your new discovery file from one of the templates in ./DISCOVERY and point to is here, -or-
         #   2) leave this property pointing at the discovery-dlft.json target and copy your new customized file to 
         #      discovery-dflt.json
-        self.discoverRackServersFrom="discovery-dflt.json"   
+        #self.discoverRackServersFrom="discovery-dflt.json"   
+        #self.discoverRackServersFrom="discovery-aptsMin-sim.json"
+        self.discoverRackServersFrom="discovery-aptsMax-sim.json"
         #Ex: self.discoverRackServersFrom="discovery-2servers.json" 
     
         # TEST CONFIG
-        # - useTestLldpOuptutFile= OneOf( True,False )
-        #     if True, when discoverRackServersFrom is set to "LLDP", 
-        #       the file testLldpOuptutFile.txt is used in place of querying LLDP directly
-        #     if False, the LLDPd on the Mgt Switch is queryed for list of neighbors attached to ports
-        self.useTestLldpOuptutFile=False
-    
         # - isRackSim= OneOf( True,False)
         #     if true, the Redfish transport makes accomadations for everything to be simulated
         self.isRackSim=True
@@ -60,23 +52,38 @@ class RfaConfig():
         #Ex: self.bmcCredentialsFile="bmcCredentials-idrac.json"
     
         # RACK ENCLOSURE RESOURCE SETTINGS -- should move somewhere else if we keep them
-        self.rackModelNumber=""
-        self.rackManufacturer="Dell"
-        self.rackSerialNumber=None
-        self.rackAssetTag=None
-        self.rackChasId="Rack1"
+        self.includeLocalRackEnclosureChassis = True
+        self.rackEnclosureChassisId="Rack1"
+        self.rackEnclosureChassisModelNumber="RackModel"
+        self.rackEnclosureChassisManufacturer="Dell"
+        self.rackEnclosureChassisSerialNumber=""
+        self.rackEnclosureChassisDefaultAssetTag=""
     
         # MANAGEMENT SWITCH RESOURCE SETTINGS
-        self.mgtSwitchChasId="MgtSwitch1"
-        self.mgtSwitchModelNumber="Switch-ON"
-        self.mgtSwitchManufacturer="Dell"
-        self.mgtSwitchSerialNumber=None
-        self.mgtSwitchAssetTag=None
+        self.includeLocalMgtSwitchChassis = True
+        self.mgtSwitchChassisId="MgtSwitch"
+        self.mgtSwitchChassisType="Rackmount"
+        self.mgtSwitchChassisModelNumber="Switch-ON"
+        self.mgtSwitchChassisManufacturer="Dell"
+        self.mgtSwitchChassisSerialNumber="12345678"
+        self.mgtSwitchChassisDefaultAssetTag=""
     
         # REDFISH AGGREGATION MANAGER 
-        self.aggregatorMgrId="RedDrum-Aggregator"
-        self.aggregatorHostServerChasId="RedDrum-Aggregator-Host"  # chasId of separate server running aggregator
-        self.aggregatorHostServerModel="R740"
-        self.aggregatorHostServerManufacturer="Dell"
-        self.aggregatorHostServerSerialNumber=None
-        self.aggregatorHostServerAssetTag=None
+        self.includeAggregatorManager = True
+        self.aggregatorMgrId="Aggregator"
+
+        # -redfishAggregatorIsInsideSwitch= OneOf( True, False )
+        #    set to false to model case where Aggregator is in a separate server--not inside mgt switch
+        #    set to true if running on switch as container or venv
+        self.redfishAggregatorIsInsideSwitch=True
+
+        # REDFISH AGGREGATOR HOST if not hosted by the Mgt Switch 
+        #  this ignored if redfishAggregatorIsInsideSwitch is True and includeLocalMgtSwitchChassis is True
+        self.includeLocalAggregatorHostChassis = True  
+        self.aggregatorHostChassisId="AggregatorHost"  # chasId of separate server running aggregator
+        self.aggregatorHostChassisType="Rackmount"  
+        self.aggregatorHostChassisManufacturer="Dell"
+        self.aggregatorHostChassisModelNumber="R740"
+        self.aggregatorHostChassisSerialNumber="01234567"
+        self.aggregatorHostChassisDefaultAssetTag=""
+
