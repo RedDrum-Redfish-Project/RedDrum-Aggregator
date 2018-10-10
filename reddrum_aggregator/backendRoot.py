@@ -58,16 +58,25 @@ class RdBackendRoot():
         rdr.baseDataPath=os.path.join(rdr.frontEndPkgPath,"Data")
         #print("DEBUG: baseDataPath: {}".format(rdr.baseDataPath))
 
-        # FIX final paths for RedDrum-Aggregator /var and /etc...
+        # set paths for where RedDrum-Aggregator stores persistent cashe data
+        #   for frontend users/passwords and accountService/SessionService settings
+        #   The Aggregator also stores persistent data eg AssetTag for the localAssets. 
+        # normally, this is at /var/www/rf/db/  but that requires the service be run as root
+        # if started with -L isLocal=True, it is at $CWD/var/www/rf/db
         rdr.varDataPath=os.path.join("/var", "www", "rf")
         #print("DEBUG: varDataPath: {}".format(rdr.varDataPath))
 
-        # if we have a RedDrum.conf file in etc/ use it. otherwise use the default
+        # if we have a RedDrum.conf file in etc/ use it. 
+        # otherwise if we have a RedDrum.conf in Backend, use it,
+        #  else use the default in the frontend
         #rdr.RedDrumConfPath=os.path.join(rdSvcPath, "RedDrum.conf" )
         redDrumConfPathEtc=os.path.join("/etc",  "RedDrum.conf" )
         redDrumConfPathFrontend=os.path.join(rdr.frontEndPkgPath, "RedDrum.conf")
+        redDrumConfPathBackend=os.path.join(rdSvcPath, "RedDrum.conf")
         if os.path.isfile(redDrumConfPathEtc):
             rdr.RedDrumConfPath=redDrumConfPathEtc
+        elif os.path.isfile(redDrumConfPathFrontend):
+            rdr.RedDrumConfPath=redDrumConfPathFrontend
         else:
             rdr.RedDrumConfPath=redDrumConfPathFrontend
         #print("DEBUG: RedDrumConfPath: {}".format(rdr.RedDrumConfPath))
