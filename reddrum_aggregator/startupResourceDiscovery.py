@@ -5,16 +5,16 @@
 
 import os
 import json
-from .aggregatorResourceAdds import RfaResourceAdds
-from .lldpParser import RfaLldpApis
+#xg99 from .aggregatorResourceAdds import RfaResourceAdds
+#xg99 from .lldpParser import RfaLldpApis
 from .redfishTransports import BmcRedfishTransport
 from .aggregatorConfig import RfaConfig
 
 
 class RdStartupResourceDiscovery():
     def __init__(self,rdr):
-        self.rfaResAdds=RfaResourceAdds(rdr)
-        self.rfaLldp=RfaLldpApis()
+        #self.rfaResAdds=RfaResourceAdds(rdr)
+        #self.rfaLldp=RfaLldpApis()
         self.rdr=rdr
         self.rfaCfg=RfaConfig()  # aggregatorConfig data
 
@@ -22,22 +22,24 @@ class RdStartupResourceDiscovery():
         #self.debug=True
 
         # initialize discovery dicts
-        self.chassisDict={}
-        self.managersDict={}
-        self.systemsDict={}
-        self.fansDict={}
-        self.temperatureSensorsDict={}
-        self.powerSuppliesDict={}
-        self.voltageSensorsDict={}
-        self.powerControlDict={}
-        self.mgrNetworkProtocolDict={}
-        self.mgrEthernetDict={}
+        self.aggrSvcRootDb=rdr.backend.aggrSvcRootDb
+
+        self.chassisDict={} #xg99
+        self.managersDict={} #xg99
+        self.systemsDict={} #xg99
+        self.fansDict={} #xg99
+        self.temperatureSensorsDict={} #xg99
+        self.powerSuppliesDict={} #xg99
+        self.voltageSensorsDict={} #xg99
+        self.powerControlDict={} #xg99
+        self.mgrNetworkProtocolDict={} #xg99
+        self.mgrEthernetDict={} #xg99
 
     # --------------------------------------------------
 
     def discoverResourcesPhase1(self, rdr):
         #PHASE-0a: get some configs from appregatorConfig.py
-        rdr.logMsg("INFO","....discovery: running phase-0. Getting Aggregator config from aggregatorConfig.py")
+        rdr.logMsg("INFO","..discovery: running phase-0. Getting Aggregator config from aggregatorConfig.py")
         rdr.logMsg("INFO","....discovery: running phase-0a. Getting isRackSim from aggregatorConfig.py")
         isSimulator=self.rfaCfg.isRackSim
         rdr.backend.isSimulator=isSimulator
@@ -81,7 +83,7 @@ class RdStartupResourceDiscovery():
                 "........using bmcCredentials json file: {}".format(bmcCredentialsFile))
 
         #PHASE-0d: get rackservers discovery file
-        rdr.logMsg("INFO","....discovery: running phase-0d. Getting rackServers Discovery File from aggregatorConfig.py")
+        rdr.logMsg("INFO","....discovery: running phase-0d. Getting RackServers Discovery File from aggregatorConfig.py")
         rdr.logMsg("INFO",
                 "........using discovery json file: {}".format(self.rfaCfg.discoverRackServersFrom))
         discoveryFile=self.rfaCfg.discoverRackServersFrom
@@ -95,295 +97,226 @@ class RdStartupResourceDiscovery():
 
 
         #PHASE-1:  discover the rack level Resources
-        rdr.logMsg("INFO","....discovery: running phase-1.  adding Rack-Level Resources")
+        rdr.logMsg("INFO","..discovery: running phase-1.  adding Local Resources")
 
         #PHASE-1a:  discover the rack level enclosure
-        rdr.logMsg("INFO","....discovery: running phase-1a.  adding Rack-Level Chassis Enclosure Resource")
-        chasId, chasRackEntry = self.rfaResAdds.addRfaRackChassis()
-        if chasId is not None:
-            self.chassisDict[chasId] = chasRackEntry
+        if self.rfaCfg.includeLocalRackEnclosureChassis is True:
+            rdr.logMsg("INFO","....discovery: running phase-1a.  adding Rack-Level Chassis Enclosure Resource")
+            rc = rdr.backend.chassis.rack.addRfaRackEnclosureChassisResource()
+            if rc is not 0:
+                rdr.logMsg("ERROR","........Error adding Rack Level Enclosure Chassis")
 
         #PHASE-1b:  discover the rack level Mgt Switch chassis
-        rdr.logMsg("INFO","....discovery: running phase-1b.  adding Management Switch Chassis resource")
-        chasId, chasMgtSwitchEntry = self.rfaResAdds.addRfaMgtSwitchChassis()
-        if chasId is not None:
-            self.chassisDict[chasId] = chasMgtSwitchEntry 
-
-        #PHASE-1c:  discover the aggregator Manager
-        rdr.logMsg("INFO","....discovery: running phase-1c.  adding Redfish Aggregator Manager resource")
-        mgrId, mgrAggregatorEntry = self.rfaResAdds.addRfaRedfishAggregatorManager()
-        if mgrId is not None:
-            self.managersDict[mgrId] = mgrAggregatorEntry 
-
-        #PHASE-1d:  if aggregatorMgr is a separate server chassis from switch, then add it
-        if self.rfaCfg.redfishAggregatorIsInsideSwitch is not True:
-            rdr.logMsg("INFO","....discovery: running phase-1d.  adding Redfish Aggregator chassis as separate chassis")
-            chasId, chasAggregatorHostEntry = self.rfaResAdds.addRfaRedfishAggregatorHostServerChassis()
-            if chasId is not None:
-                self.chassisDict[chasId] = chasAggregatorHostEntry
-        else:
-            rdr.logMsg("INFO","....discovery: running phase-1d.  Redfish Aggregator chassis is inside Switch-no addl chassis")
+        if self.rfaCfg.includeLocalMgtSwitchChassis is True:
+            rdr.logMsg("INFO","....discovery: running phase-1b.  adding Management Switch Chassis resource")
+            rc = rdr.backend.chassis.mgtSwitch.addRfaMgtSwitchChassisResource()
+            if rc is not 0:
+                rdr.logMsg("ERROR","........Error adding Management Swtich Chassis")
 
 
-        #PHASE-1e:  resync rackserver discovery file 
-        rdr.logMsg("INFO","....discovery: running phase-1e.  updating rack server discovery")
-        # add update phase if required later
+        #PHASE-1c:  if aggregator is in a separate "Host" chassis from switch, then add it
+        if self.rfaCfg.includeLocalAggregatorHostChassis is True:
+            if self.rfaCfg.redfishAggregatorIsInsideSwitch is not True or self.rfaCfg.includeLocalMgtSwitchChassis is not True:
+                rdr.logMsg("INFO","....discovery: running phase-1c.  adding Redfish Aggregator Host Chassis ")
+                rc = rdr.backend.chassis.aggrHost.addRfaAggregatorHostChassisResource()
+                if rc is not 0:
+                    rdr.logMsg("ERROR","........Error adding Aggregator Host Chassis")
+            else:
+                rdr.logMsg("INFO","....discovery: running phase-1c.  Redfish Aggregator is inside Switch--no Host chassis to add")
+
+        #PHASE-1d:  discover the aggregator Manager
+        rdr.logMsg("INFO","....discovery: running phase-1d.  adding Redfish Aggregator Manager resource")
+        rc = rdr.backend.managers.aggrMgr.addRfaAggregatorManagerResource()
+        if rc is not 0:
+            rdr.logMsg("ERROR","........Error adding Aggregator Manager")
 
 
-        #PHASE-1f:  add rack servers to Systems, Chassis, and Managers DBs
-        rdr.logMsg("INFO","....discovery: running phase-1f.  getting LLDP database of attached servers")
+        #PHASE-1e:  walk discovery Db and add RootService entry for this server to aggrSvcRootDb
+        rdr.logMsg("INFO","....discovery: running phase-1e.  discovering RackServers from discovery file")
+        rdr.logMsg("INFO","........from discovery file: {}".format(self.rfaCfg.discoverRackServersFrom))
+        if rackServersDiscoveryDict is not None and "Comment" in rackServersDiscoveryDict:
+            rdr.logMsg("INFO","..........-- {}".format(rackServersDiscoveryDict["Comment"]))
         if rackServersDiscoveryDict is not None and "RackServers" in rackServersDiscoveryDict:
             requiredDiscoveryProps = ["Id","IPv4Address","PduSocketId", "CredentialsId" ]
-            for svr in rackServersDiscoveryDict["RackServers"]:
-                svrId=None
-                svrNetloc=None
-                svrPduSockId=None
-                svrCredsId=None
-
+            for svc in rackServersDiscoveryDict["RackServers"]:
                 badEntry=False
                 for prop in requiredDiscoveryProps:
-                    if prop not in svr:
+                    if prop not in svc:
                         badEntry=True
                         break
                 if badEntry is True:
                     rdr.logMsg("ERROR",
-                    "........error getting discovery properties (svrId, netloc, pduSocket, CredentialsId from rackServersDiscoveryDict")
+                    "........error getting discovery properties (svcId, netloc, pduSocket, CredentialsId from rackServersDiscoveryDict")
                     rdr.logMsg("ERROR","............skipping server and continuing...")
                     continue  # next server 
 
                 # if here, we know that all of the required properties are in the entry
                 # extract the Id and create a netloc for each server
-                svrId = svr["Id"]
-                svrNetloc = svr["IPv4Address"]
-                svrPduSockId = svr["PduSocketId"]
-                svrCredsId = svr["CredentialsId"]
+                svcId = svc["Id"]
+                svcNetloc = svc["IPv4Address"]      # the bmc netloc
+                svcPduSockId = svc["PduSocketId"]
+                svcCredsId = svc["CredentialsId"]
 
                 # verify that the credentialsId is valid
-                if svrCredsId not in self.rdr.backend.credentialsDb:
+                if svcCredsId not in self.rdr.backend.credentialsDb:
                     rdr.logMsg("ERROR",
                     "........The credentiasId in the discovery file is not a valid credentialsId in the credentials file")
                     rdr.logMsg("ERROR","............skipping server and continuing...")
                     continue  # next server 
 
-                # create a Chassis Entry for the rack server
-                chasId, svrChasEntry = self.rfaResAdds.addRfaRackServerChassis(svrId, svrNetloc, svrPduSockId, svrCredsId)
-                if chasId is not None:
-                    self.chassisDict[chasId] = svrChasEntry 
-                    if "BaseNavigationProperties" in svrChasEntry:
-                        chasLinks = svrChasEntry["BaseNavigationProperties"]
-                        if "Thermal" in chasLinks:
-                            self.temperatureSensorsDict[chasId]={}
-                            self.fansDict[chasId]={}
-                        if "Power" in chasLinks:
-                            self.powerSuppliesDict[chasId]={}
-                            self.voltageSensorsDict[chasId]={}
-                            self.powerControlDict[chasId]={}
-
-                # create a Systems Entry for the rack server
-                sysId, svrSystemEntry = self.rfaResAdds.addRfaRackServerSystem(svrId, svrNetloc, svrCredsId)
-                if sysId is not None:
-                    self.systemsDict[sysId] = svrSystemEntry 
-
-                # create a Manager Entry for the rack server's BMC
-                mgrId, svrManagerEntry = self.rfaResAdds.addRfaRackServerManager(svrId, svrNetloc, svrCredsId)
-                if mgrId is not None:
-                    self.managersDict[mgrId] = svrManagerEntry 
+                # create a RootSvc Entry for the rack server
+                svcRootId, svcRootEntry = self.addRfaRackServerRoot(svcId, svcNetloc, svcCredsId, svcPduSockId)
+                if svcRootId is not None:
+                    self.aggrSvcRootDb[svcRootId] = svcRootEntry 
         else:
             # else from if rackServersDiscoveryDict is not None and "RackServers" in rackServersDiscoveryDict:
             rdr.logMsg("CRITICAL",".......no \"RackServers\" array in rackServersDiscoveryDict. fatal")
             return(-9)
-        
-        # PHASE-1g: update Rack-Level Chassis Contains list to include all of the chassis in the rack
-        rdr.logMsg("INFO","....discovery: running phase-1g.  updating Rack-level Chassis Contains list")
-        self.rfaResAdds.updateRfaRackChassisContainsList( self.chassisDict ) 
 
-        # PHASE-1h: update Aggregation Manager "Manager For Chassis" list to include all of the chassis it manages
-        rdr.logMsg("INFO","....discovery: running phase-1h.  updating Aggregation Manager  \"ManagerForChassis\" list")
-        self.rfaResAdds.updateRfaAggrMgrManagersForChassisList( self.chassisDict, self.managersDict ) 
 
-        # PHASE-1i: update Aggregation Manager "Manager For Servers" list to include all of the servers it manages
-        rdr.logMsg("INFO","....discovery: running phase-1i.  updating Aggregation Manager \"ManagerForServers\" list")
-        self.rfaResAdds.updateRfaAggrMgrManagersForServersList( self.systemsDict, self.managersDict ) 
+        # PHASE-1f: sequentially communicate w/ each server BMC service root and add links to Chassis, Managers, and Servers
+        rdr.logMsg("INFO","....discovery: running phase-1f.  getting ServiceRoot, Server, and Chassis info from BMCs")
+        for svcId in self.aggrSvcRootDb:
+            svc=self.aggrSvcRootDb[svcId]
+            requiredPropsInSvcRootDb=["SvcId","Netloc","CredentialsId"]
+            for prop in requiredPropsInSvcRootDb:
+                if prop not in svc:
+                    rdr.logMsg("ERROR","..........Error-no {} prop in managersDict  ".format(prop))
+                    continue
 
-        # PHASE-1j: sequentially communicate w/ each server BMC and save URIs to chas, sys, and mgr resources
-        rdr.logMsg("INFO","....discovery: running phase-1j.  getting detail server info from Server BMCs")
-        for mgrId in self.managersDict:
-            if "IsRackServerManager" not in self.managersDict[mgrId]:
-                continue
-            if self.managersDict[mgrId]["IsRackServerManager"] is not True:
-                continue
-
-            rdr.logMsg("INFO","....... adding server Id:{}".format(mgrId))
-            # create a transport to the manager
-            if "Netloc" not in self.managersDict[mgrId]:
-                rdr.logMsg("ERROR","..........Error-no netloc in managersDict  ")
-                continue
-            if "CredentialsId" not in self.managersDict[mgrId]:
-                rdr.logMsg("ERROR","..........Error-no credentialsId in managersDict  ")
-                continue
-
-            netloc=self.managersDict[mgrId]["Netloc"]
-            credentialsId=self.managersDict[mgrId]["CredentialsId"]
+            #svcId = svc["SvcId"]
+            rdr.logMsg("INFO","....... getting ServiceRoot from BMC Id:{}".format(svcId))
+            netloc=svc["Netloc"]
+            credentialsId=svc["CredentialsId"]
             credentialsInfo = self.rdr.backend.credentialsDb[credentialsId] # we earlier verified that all credIds are valid
 
-            rdr.logMsg("INFO","...........adding server Id:{}, netloc:{}".format(mgrId,netloc))
+            # create a transport to the manager
             rft = BmcRedfishTransport(rhost=netloc, isSimulator=self.rdr.backend.isSimulator, debug=self.debug, 
                                       credentialsInfo=credentialsInfo)
             waitTimeSave=rft.waitTime
 
-            # Defensive: make sure this Id exists also for Chassis and Managers
-            if mgrId not in self.chassisDict or mgrId not in self.systemsDict:
-                rdr.logMsg("ERROR","..........the Id {} is not valid in chassisDict or systemsDict".format(mgrId))
-                continue
-
             # read the service root
             rft.waitTime=5
-            rc,r,j,svcRoot = rft.rfSendRecvRequest("GET", "/redfish/v1")
+            rc,r,j,dSvcRoot = rft.rfSendRecvRequest("GET", "/redfish/v1")
             rft.waitTime=waitTimeSave
             if rc==6:
-                rdr.logMsg("ERROR","..........error getting service root for id: {}. rc: {} RETRY".format(mgrId,rc))
-                rc,r,j,svcRoot = rft.rfSendRecvRequest("GET", "/redfish/v1")
+                rdr.logMsg("ERROR","..........error getting service root for id: {}. rc: {} RETRY".format(svcId,rc))
+                rc,r,j,dSvcRoot = rft.rfSendRecvRequest("GET", "/redfish/v1")
             if rc is not 0:
-                rdr.logMsg("ERROR","..........error getting service root for id: {}. rc: {}".format(mgrId,rc))
+                rdr.logMsg("ERROR","..........error getting service root for id: {}. rc: {}".format(svcId,rc))
             else:
+                # save the root service uri, response, and redfish transport in the rootServiceDb
                 rootUri=r.url
-                # get server Managers Collection and parse to get URI
-                if "Managers" in svcRoot and "@odata.id" in svcRoot["Managers"]:
-                    mgrCollUri = svcRoot["Managers"]["@odata.id"]    # url to collection of Managers
-                    rc,r,j,d = rft.rfSendRecvRequest( "GET", mgrCollUri ) 
+                svc["RootUri"]= rootUri
+                svc["RedfishTransport"]=rft
+                svc["ServiceRoot"]=dSvcRoot
+                svc["ManagersMembers"]=[]
+                svc["ChassisMembers"]=[]
+                svc["SystemsMembers"]=[]
+                svc["TopLevelChassisUrlList"] = [] 
+
+                # get Managers Collection and store
+                rdr.logMsg("INFO","..........getting Manager Collection ")
+                if "Managers" in dSvcRoot and "@odata.id" in dSvcRoot["Managers"]:
+                    mgrCollUri = dSvcRoot["Managers"]["@odata.id"]    # url to collection of Managers
+                    rc,r,j,dMgrColl = rft.rfSendRecvRequest( "GET", mgrCollUri ) 
                     if rc is not 0:
                         rdr.logMsg("ERROR","............ GET Managers Collection failed for uri {}".format(mgrCollUri))
                     else:
-                        # extract url to the manager and save it
-                        # xg9999 may want to handle multiple managers
-                        if ("Members" in d) and (len(d["Members"]) == 1) and ("@odata.id" in d["Members"][0]):
-                            mgrUrl = d["Members"][0]["@odata.id"]
-                            self.managersDict[mgrId]["MgrUrl"] = mgrUrl
-                            self.managersDict[mgrId]["BaseUrl"]= rootUri
-                            rdr.logMsg("INFO","............ added manager: {}, Url: {}".format(mgrId,mgrUrl))
+                        if ("Members" in dMgrColl):
+                                svc["ManagersMembers"]=dMgrColl["Members"]
                         else:
-                            rdr.logMsg("ERROR","............ no Manager Member found in Managers Collection for {}".format(mgrId))
+                            rdr.logMsg("WARNING","............ no Members list found in Managers Collection for {}".format(svcId))
                 else:
-                    rdr.logMsg("ERROR","............ no Managers property in service root for svr Id {}".format(mgrId))
+                    rdr.logMsg("WARNING","............ no Managers property in service root for {}".format(svcId))
 
-                # get server Chassis Collection and parse to get URI
-                if "Chassis" in svcRoot and "@odata.id" in svcRoot["Chassis"]:
-                    chasId = mgrId
-                    chasCollUri = svcRoot["Chassis"]["@odata.id"]    # url to collection of chassis
-                    rc,r,j,d = rft.rfSendRecvRequest( "GET", chasCollUri ) 
+                # get Chassis Collection and store
+                rdr.logMsg("INFO","..........getting Chassis Collection ")
+                if "Chassis" in dSvcRoot and "@odata.id" in dSvcRoot["Chassis"]:
+                    chasCollUri = dSvcRoot["Chassis"]["@odata.id"]    # url to collection of Managers
+                    rc,r,j,dChasColl = rft.rfSendRecvRequest( "GET", chasCollUri ) 
                     if rc is not 0:
                         rdr.logMsg("ERROR","............ GET Chassis Collection failed for uri {}".format(chasCollUri))
                     else:
-                        # extract url to the chassis and save it
-                        if ("Members" in d):
-                            if (len(d["Members"]) == 1) and ("@odata.id" in d["Members"][0]):
-                                chasUrl = d["Members"][0]["@odata.id"]
-                                self.chassisDict[chasId]["ChasUrl"] = chasUrl
-                                self.chassisDict[chasId]["BaseUrl"]= rootUri
-                                rdr.logMsg("INFO","............ added chassis: {}, Url: {}".format(chasId,chasUrl))
-                            else: 
-                                # get manager entry to find the chassis it manages
-                                # mgrUrl is still valid
-                                rdr.logMsg("INFO","............ getting mgr entry to find chassisId..")
-                                rc,r,j,dmgr = rft.rfSendRecvRequest( "GET", mgrUrl ) 
-                                print("EEEEEEEEEEEEEEEEEEEEEEEEE")
-                                if rc is not 0:
-                                    rdr.logMsg("ERROR","............ GET Manager failed for uri {}".format(mgrUrl))
-                                else:
-                                    if "Links" in dmgr and "ManagerForChassis" in dmgr["Links"]:
-                                        print("EEEEEEEEEEEEEEEEEEEEEEEEE")
-                                        mgrForChas=dmgr["Links"]["ManagerForChassis"]
-                                        if len(mgrForChas)==1 and "@odata.id" in mgrForChas[0]:
-                                            print("EEEEEEEEEEEEEEEEEEEEEEEEE")
-                                            chasUrl = mgrForChas[0]["@odata.id"]
-                                            self.chassisDict[chasId]["ChasUrl"] = chasUrl
-                                            self.chassisDict[chasId]["BaseUrl"]= rootUri
-                                            rdr.logMsg("INFO","............ added chassis: {}, Url: {}".format(chasId,chasUrl))
-                                        else:
-                                            rdr.logMsg("ERROR","A............ no Chassis Member found for {}".format(chasId))
-                                    else:
-                                        print("BBBBBBBBBBBBBBBBBBBBBBB")
-                                        if "Model" in dmgr and dmgr["Model"]=="OpenBmc":
-                                            print("Assuming chasId=R1000_Chassis EEEEEEEEEEEEEEEEEEEEEEEEE")
-                                            chasUrl = "/redfish/v1/Chassis/R1000_Chassis"
-                                            self.chassisDict[chasId]["ChasUrl"] = chasUrl
-                                            self.chassisDict[chasId]["BaseUrl"]= rootUri
-                                            rdr.logMsg("INFO","............ added chassis: {}, Url: {}".format(chasId,chasUrl))
-                                        else:
-                                            rdr.logMsg("ERROR","B............ no Chassis Member found for {}".format(chasId))
+                        if ("Members" in dChasColl):
+                                svc["ChassisMembers"]=dChasColl["Members"]
+                        else:
+                            rdr.logMsg("WARNING","............ no Members list found in Chassis Collection for {}".format(svcId))
                 else:
-                    rdr.logMsg("ERROR","............ no Chassis property in service root for svr Id {}".format(chasId))
+                    rdr.logMsg("WARNING","............ no Chassis property in service root for {}".format(svcId))
+                #print("EEEEEEEEEEEEEE: Managers: {}".format(svc["ManagersMembers"]))
 
-                # get server Systems Collection and parse to get URI
-                if "Systems" in svcRoot and "@odata.id" in svcRoot["Systems"]:
-                    sysId = mgrId
-                    sysCollUri = svcRoot["Systems"]["@odata.id"]     # url to collection of Systems
-                    rc,r,j,d = rft.rfSendRecvRequest( "GET", sysCollUri ) 
+                # get Systems Collection and store
+                rdr.logMsg("INFO","..........getting Systems Collection ")
+                if "Systems" in dSvcRoot and "@odata.id" in dSvcRoot["Systems"]:
+                    sysCollUri = dSvcRoot["Systems"]["@odata.id"]    # url to collection of Systems
+                    rc,r,j,dSysColl = rft.rfSendRecvRequest( "GET", sysCollUri ) 
                     if rc is not 0:
                         rdr.logMsg("ERROR","............ GET Systems Collection failed for uri {}".format(sysCollUri))
                     else:
-                        # extract url to the system and save it
-                        if ("Members" in d) and (len(d["Members"]) == 1) and ("@odata.id" in d["Members"][0]):
-                            sysUrl = d["Members"][0]["@odata.id"]
-                            self.systemsDict[sysId]["SysUrl"] = sysUrl
-                            self.systemsDict[sysId]["BaseUrl"]= rootUri
-                            rdr.logMsg("INFO","............ added System: {}, Url: {}".format(sysId,sysUrl))
+                        if ("Members" in dChasColl):
+                                svc["SystemsMembers"]=dSysColl["Members"]
                         else:
-                            rdr.logMsg("ERROR","............ no System Member found in Systems Collection for {}".format(sysId))
+                            rdr.logMsg("WARNING","............ no Members list found in Systems Collection for {}".format(svcId))
                 else:
-                    rdr.logMsg("ERROR","............ no Systems property in service root for svr Id {}".format(mgrId))
+                    rdr.logMsg("WARNING","............ no Systems property in service root for {}".format(svcId))
 
 
-
-
-        #PHASE-1k:  
-        rdr.logMsg("INFO","....discovery: running phase-1k.   moving resources to the front-end cache databases")
-        # now set the front-end databases to what we have discovered here in the backend
-        # but note that at this point we are not saving these to the HDD cache
-        # initialize the chassis databases
-
-        #   --point the front-end chassis databases at the backend dicts we just generated
-        rdr.logMsg("INFO","............discovery: setting chassis databases")
-        rdr.root.chassis.chassisDb=self.chassisDict
-        rdr.root.chassis.fansDb=self.fansDict
-        rdr.root.chassis.tempSensorsDb=self.temperatureSensorsDict
-        rdr.root.chassis.powerSuppliesDb=self.powerSuppliesDict
-        rdr.root.chassis.voltageSensorsDb=self.voltageSensorsDict
-        rdr.root.chassis.powerControlDb=self.powerControlDict
-
-        #   --point the front-end managers databases at the backend dicts we just generated
-        rdr.logMsg("INFO","............discovery: setting managers database")
-        rdr.root.managers.managersDb=self.managersDict
-
-        #   --point the front-end systems databases at the backend dicts we just generated
-        rdr.logMsg("INFO","............discovery: setting systems database")
-        rdr.root.systems.systemsDb=self.systemsDict
-
-        #   --create empty Processors, EthernetInterfaces, Memory, and SimpleStorage DBs
-        rdr.logMsg("INFO","............discovery: creating empty Proc, Mem, Sto, Eth DBs")
-        rdr.root.systems.processorsDb=dict()
-        rdr.root.systems.simpleStorageDb=dict()
-        rdr.root.systems.ethernetInterfaceDb=dict()
-        rdr.root.systems.memoryDb=dict()
-
-        #PHASE-l:  
-        rdr.logMsg("INFO","....discovery: running phase-l..   initialize volatile Dicts")
-
-        #   --initialize the Chassis volatileDicts
-        rdr.logMsg("INFO","............discovery: initializing Chassis VolatileDicts")
-        rdr.root.chassis.initializeChassisVolatileDict(rdr)
-
-        #   --initialize the Managers volatileDicts
-        rdr.logMsg("INFO","............discovery: initializing Managers VolatileDicts")
-        rdr.root.managers.initializeManagersVolatileDict(rdr)
-
-        #   --initialize the Systems volatileDict
-        rdr.logMsg("INFO","........system discovery: initializing Systems VolatileDict")
-        rdr.root.systems.initializeSystemsVolatileDict(rdr)
-
-        #PHASE-1m:  
-        rdr.logMsg("INFO","....discovery: Phase1 complete")
+        # PHASE-1g: find all of the "Top-Level" chassis under each service root
+        #    this info is needed to properly generate the Links between the AggrMgr, AggrChas, and rackServers and chassis
+        #    if there is only one chassis in the Chassis Collection for a service, set it as the Top-Level chassis implicitly
+        #    else: Get each Chassis entry under that service 
+        #          if the entry has a ContainedBy propoerty, do not put it in the listo
+        #          if there is no ContainedBy property or the property = None or equal to "", set ContainedBy to None
+        #          otherwise store the containtedBy list
+        rdr.logMsg("INFO","....discovery: running phase-1g.  checking for Chassis that are \"ContainedBy\"  another chassis")
+        for svcId in self.aggrSvcRootDb:
+            svc=self.aggrSvcRootDb[svcId]
+            #svcId = svc["SvcId"]
+            if "ChassisMembers" in svc:
+                chassisMembers = svc["ChassisMembers"]
+                numOfChassis = len(chassisMembers)
+            else:
+                rdr.logMsg("ERROR","..........no ChassisMembers in svc ")
+                continue   # and leave svc[TopLevelChassisUrlList] an empty list 
+            if numOfChassis == 0:
+                continue   # and leave svc[TopLevelChassisUrlList] an empty list 
+            elif numOfChassis == 1:
+                if "@odata.id" in svc["ChassisMembers"][0]:
+                    chasUrl = svc["ChassisMembers"][0]["@odata.id"]
+                    svc["TopLevelChassisUrlList"].append( chasUrl ) # add the one entry to topLevelChassisUrlList
+            else:
+                # get each chassis under this root serivce and check if it has a ContainedBy
+                for chasMember in svc["ChassisMembers"]:
+                    if "@odata.id" in chasMember:
+                        chasUrl = chasMember["@odata.id"]
+                        rft = svc["RedfishTransport"]
+                        rc,r,j,dChas = rft.rfSendRecvRequest("GET", chasUrl)
+                        if rc is not 0:
+                            rdr.logMsg("ERROR","....error reading chassis entry for url: {}".format(chasUrl))
+                            continue
+                        if "Links" in dChas: 
+                            if "ContainedBy" in dChas["Links"]:
+                                chasContainedByVal = dChas["Links"]["ContainedBy"]
+                                if chasContainedByVal is not None and chasContainedByVal != "":
+                                    continue # dont add this chas member to topLevelChassisUrlList
+                        # if here, we know the chassis does not have a ContainedBy link
+                        # add it to the topLevelChasUrlList
+                        svc["TopLevelChassisUrlList"].append( chasUrl ) # add to topLevelChassisUrlList
+                    else:
+                        rdr.logMsg("WARNING","....chassisMembers member has no odata.id" )
+            # debug: display the topLevelChassis for this service
+            #print("EEEEEE: topLvlChassisUriList: {}".format(svc["TopLevelChassisUrlList"]))
         return(0)
+
+    # svcRootId, svcRootEntry = self.addRfaRackServerRoot(svcId, svcNetloc, svcCredsId, svcPduSockId)
+    def addRfaRackServerRoot(self, svcId, svcNetloc, svcCredsId, svcPduSockId):
+        resp=dict()
+        resp["SvcId"]=svcId
+        resp["Netloc"]=svcNetloc
+        resp["CredentialsId"]=svcCredsId
+        resp["PduSocketId"]=svcPduSockId
+        return(svcId,resp)
 
 
     # Phase-2 discovery -- runs after Phase-1 discovery if  no errors
@@ -395,6 +328,55 @@ class RdStartupResourceDiscovery():
 
 
     # --------------------------------------------------
+    # Rules for linking between Systems, Chassis, and Managers with 1) AggrMgr and 2) AggrChassis
+    # During Discovery:
+    # for <svc> in rootSvcDb:
+    #   for chasMember in <svc>[ChassisMembers] # the members array of chassis under this service
+    #      if   len of the chassisMembers array is 0:  
+    #         then set topLevelChassisList=[] # an empty list
+    #      elif len of the chassisMembers array is 1:  
+    #         then add the single chas url (chasMember[@odata.id]) to the topLevelChassisList
+    #      else # case where there are several chassis.   
+    #         # add all chassis that dont have a "ContainedBy" link to the list
+    #         chasMemberUrl = chasMember[@odata.id]
+    #         chasResponse  = GET chasMemberUrl
+    #         if "ContainedBy" in chasResponse[Links] 
+    #            chasContainedByVal = chasResponse[Links]["ContainedBy"] 
+    #            if chasContainedByVal is not None and chasContainedByVal is not "":
+    #               continue # dont put this chassis in the topLevelChassisList
+    #         otherwise cases where there is a valid ContainedBy value, add the chas to topLevelChassisList
+    #         add chasMemberUrl to the topLevelChassisList
+
+    # DONE
+    # if GET <chas>:
+    #   if <chas> id is in topLevelChassisList  # that is: it does not have a ContainedBy link:
+    #    x) add "ConatinedBy": <AggregationChassis> to the <chas>'s Links
+    #    x) add <AggregationManager> to <chas>'s "ManagedBy" list
+
+    # DONE
+    # if GET <Rack Level Enclosure Chassis>:
+    #    for each svc in rootSvcDb:
+    #      for each id in svc[topLevelChassisList]# that is: chassis that do not have a ContainedBy link:
+    #        x) add <chas> to the <RackEnclosureChassis>'s "Contains" list
+    #    no "ComputerSystems" list
+
+    # DONE
+    # if GET <AggregationManager>:
+    #    for each svc in rootSvcDb:
+    #      for each id in svc[topLevelChassisList]# that is: chassis that do not have a ContainedBy link:
+    #        x) add <chas> to the <AggregationManager>'s "ManagerForChassis" list
+    #    for each svc in rootSvcDb:
+    #      for each <sys> in svc[SystemsMembers] 
+    #        x) add <sys> to the <AggregationManager>'s "ManagerForServers" list
+
+    # DONE
+    # if GET <system>:
+    #    x) add <AggregationManager> to <systems>'s "ManagedBy" list
+    #    x) the systems's Chassis list will not contain AggregationChassis
+
+    # if GET <mgr>:
+    #    x) nothing changes with AggMgr
+    
     # --------------------------------------------------
     # --------------------------------------------------
     # --------------------------------------------------

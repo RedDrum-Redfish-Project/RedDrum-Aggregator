@@ -7,27 +7,31 @@
 import os
 import json
 import inspect
-from .chassisBackend   import RdChassisBackend
-from .managersBackend  import RdManagersBackend
-from .systemsBackend   import RdSystemsBackend
+
+from .chassis2Backend   import RdChassisBackend   
+from .managers2Backend  import RdManagersBackend
+from .systems2Backend   import RdSystemsBackend
 
 from .startupResourceDiscovery   import RdStartupResourceDiscovery
-from .oemFrontendUtils  import FrontendOemUtils
+#from .oemFrontendUtils  import FrontendOemUtils  #xg99
+from .aggregatorUtils  import RfaBackendUtils
 
 
 class RdBackendRoot():
     def __init__(self,rdr):
         # initialize data
-        self.backendStatus=0
-        self.discoveryState = 0
         self.rdr = rdr
-        self.oemUtils=FrontendOemUtils(rdr)
+        #self.oemUtils=FrontendOemUtils(rdr) #xg99-not used now?
+        self.rfaUtils=RfaBackendUtils(rdr)
+
+
         #   valid rdBeIdConstructionRule values are:  "Monolythic", "Dss9000", "Aggregator"
-        self.rdBeIdConstructionRule="Aggregator"
+        self.rdBeIdConstructionRule="Aggregator" #xg9999 fe?
         self.includeRackScaleOemProperties=True
         self.isSimulator=False
         self.pduApiScript=None
         self.credentialsDb={ "BMC0": {"User": "root", "Password": "redfish", "BmcType": "Generic"  } }
+        #self.idRule="IdPrefix" # oneOf["UriPrefix", "UriPostfix", "IdPrefix", "IdSwap"]] # rm xg99
 
         # create backend sub-classes
         self.createSubObjects(rdr)
@@ -37,10 +41,13 @@ class RdBackendRoot():
 
     def createSubObjects(self,rdr):
         #create subObjects that implement backend APIs
-        self.chassis=RdChassisBackend(rdr)
-        self.managers=RdManagersBackend(rdr)
-        self.systems=RdSystemsBackend(rdr)
-        self.backendStatus=1
+        self.chassis=RdChassisBackend(rdr)   
+        self.managers=RdManagersBackend(rdr) 
+        self.systems=RdSystemsBackend(rdr)   
+
+        # create instances of the Aggregation Service hosted resources
+        self.aggrSvcRootDb=dict()
+
         return(0)
 
 
@@ -147,5 +154,72 @@ class RdBackendRoot():
         return(rc,statusCode,"",jsonResp,{})
 
 
+    def processSchemaStores(self,request, urlSubPath):
+        errHdrs = self.rdr.root.hdrs.rfRespHeaders(request, contentType="raw" )
+        rc,svcIdPrefix,bmcPath = self.rfaUtils.parseLocalizedSchemafileStoreUri(urlSubPath)
+        if rc is 0:
+            bmcUrl = os.path.join("/redfish/v1", bmcPath)
+            if svcIdPrefix in self.aggrSvcRootDb:
+                svc = self.aggrSvcRootDb[svcIdPrefix]
+                bmcRft = svc["RedfishTransport"]
+                rc,r,j,respd = bmcRft.rfSendRecvRequest(request.method,bmcUrl,reqData=request.data)
+                if rc  is not 0:
+                    errMsg="..........error getting response from rack server BMC: {}. rc: {}".format(svcIdPrefix,rc)
+                    self.rdr.logMsg("ERROR",errMsg)
+                    errMsgLine2="..............method: {}. bmcUrl: {}".format(request.method,bmcUrl)
+                    self.rdr.logMsg("ERROR",errMsgLine2)
+                    if r is not None:
+                        return(rc,r.status_code,errMsg,"",errHdrs)
+                    else:
+                        return(rc,500,errMsg,"",errHdrs)
+            else:
+                return(4,404,"Not Found","",errHdrs)
+        else:
+            return(5,500,"Error Parsing Uri","",errHdrs)
+
+        sc=r.status_code
+        if sc is 200:
+            self.rfaUtils.localizeJsonschema(svcIdPrefix, respd)  # this modifies respd
+        else:
+            respd={}
+        hdrs = self.rfaUtils.addLocalizedResponseHeaders(svcIdPrefix, request, r)  # this modifies respd
+
+        jsonRespData = json.dumps(respd,indent=4)
+
+        return(rc,sc,"OK",jsonRespData,hdrs)
+
+    def processLocationUris(self,request, urlSubPath):
+        errHdrs = self.rdr.root.hdrs.rfRespHeaders(request, contentType="raw" )
+        rc,svcIdPrefix,bmcPath = self.rfaUtils.parseLocalizedLocationUri(urlSubPath)
+        if rc is 0:
+            bmcUrl = os.path.join("/redfish/v1", bmcPath)
+            if svcIdPrefix in self.aggrSvcRootDb:
+                svc = self.aggrSvcRootDb[svcIdPrefix]
+                bmcRft = svc["RedfishTransport"]
+                rc,r,j,respd = bmcRft.rfSendRecvRequest(request.method,bmcUrl,reqData=request.data)
+                if rc  is not 0:
+                    errMsg="..........error getting response from rack server BMC: {}. rc: {}".format(svcIdPrefix,rc)
+                    self.rdr.logMsg("ERROR",errMsg)
+                    errMsgLine2="..............method: {}. bmcUrl: {}".format(request.method,bmcUrl)
+                    self.rdr.logMsg("ERROR",errMsgLine2)
+                    if r is not None:
+                        return(rc,r.status_code,errMsg,"",errHdrs)
+                    else:
+                        return(rc,500,errMsg,"",errHdrs)
+            else:
+                return(4,404,"Not Found","",errHdrs)
+        else:
+            return(5,500,"Error Parsing Uri","",errHdrs)
+
+        sc=r.status_code
+        if sc is 200:
+            self.rfaUtils.localizeResource(svcIdPrefix, respd)  # this modifies respd
+        else:
+            respd={}
+        hdrs = self.rfaUtils.addLocalizedResponseHeaders(svcIdPrefix, request, r)  # this modifies respd
+
+        jsonRespData = json.dumps(respd,indent=4)
+
+        return(rc,sc,"OK",jsonRespData,hdrs)
 
 
